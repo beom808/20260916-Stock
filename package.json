@@ -1,0 +1,11 @@
+{
+  "name": "closing-bell",
+  "version": "1.0.0",
+  "private": true,
+  "description": "오늘 장 마감 기준 국내 증시 뉴스 브리핑",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "engines": { "node": ">=18" }
+}

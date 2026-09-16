@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="국내 증시 마감 뉴스 10개를 한눈에 보는 클로징벨">
+  <title>클로징벨 — 오늘의 증시 브리핑</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#"><span class="brand-mark"><i></i><i></i><i></i></span><span>클로징벨</span></a>
+    <nav><a class="active" href="#briefing">오늘의 브리핑</a><a href="#market">마켓 요약</a><a href="#news">뉴스 아카이브</a></nav>
+    <div class="top-actions"><button class="icon-btn" aria-label="검색" id="openSearch">⌕</button><button class="icon-btn" aria-label="테마 전환" id="themeBtn">☾</button><button class="avatar" aria-label="내 프로필">JS</button></div>
+  </header>
+
+  <main>
+    <section class="hero" id="briefing">
+      <div><p class="eyebrow"><span></span> MARKET CLOSED · <b id="today"></b></p><h1>오늘 시장의 흐름,<br><em>10개의 뉴스</em>로 충분하게.</h1><p class="sub">장 마감 이후 꼭 알아야 할 국내 증시 이슈만 골라<br>읽기 쉽게 정리했어요.</p></div>
+      <div class="hero-art" aria-hidden="true"><div class="orb orb-a"></div><div class="orb orb-b"></div><div class="chart"><span style="height:25%"></span><span style="height:39%"></span><span style="height:33%"></span><span style="height:58%"></span><span style="height:50%"></span><span style="height:76%"></span><span style="height:67%"></span><span style="height:91%"></span></div><div class="float-card"><small>오늘의 시장 온도</small><strong>맑음 <b>72°</b></strong><div><i></i></div></div></div>
+    </section>
+
+    <section class="ticker" id="market">
+      <div class="ticker-title"><span class="pulse"></span><div><small>MARKET SNAPSHOT</small><strong>장 마감</strong></div></div>
+      <div class="index"><div><b>KOSPI</b><span>코스피</span></div><strong>2,689.74</strong><em class="up">▲ 18.29&nbsp; +0.68%</em></div>
+      <div class="index"><div><b>KOSDAQ</b><span>코스닥</span></div><strong>777.44</strong><em class="down">▼ 2.31&nbsp; −0.30%</em></div>
+      <div class="index"><div><b>USD/KRW</b><span>원·달러</span></div><strong>1,329.80</strong><em class="down">▼ 4.20&nbsp; −0.31%</em></div>
+      <p class="ticker-note">예시 지표 · 실시간 시세 아님</p>
+    </section>
+
+    <section class="news-section" id="news">
+      <div class="section-head"><div><p class="eyebrow dark">CLOSING BRIEF</p><h2>오늘의 주요 뉴스 <sup>10</sup></h2></div><div class="updated"><span>마지막 업데이트</span><b id="updated">불러오는 중…</b></div></div>
+      <div class="filters"><div id="filterButtons"><button class="selected" data-filter="전체">전체</button><button data-filter="반도체">반도체</button><button data-filter="바이오">바이오</button><button data-filter="수급">수급</button><button data-filter="환율">환율</button><button data-filter="정책">정책</button></div><button class="refresh" id="refresh">↻&nbsp; 새로고침</button></div>
+      <div class="news-list" id="newsList"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>
+      <div class="empty" id="empty" hidden>해당 주제의 뉴스가 없어요.<button data-reset>전체 뉴스 보기</button></div>
+    </section>
+
+    <section class="newsletter"><div><span class="mail-icon">✦</span><p>매일 장 마감 후,<br><b>핵심만 받아보세요.</b></p></div><form id="subscribe"><input type="email" required placeholder="이메일 주소를 입력해 주세요" aria-label="이메일 주소"><button>브리핑 구독하기 →</button></form></section>
+  </main>
+  <div class="toast" id="toast" role="status"></div>
+  <div class="search-modal" id="searchModal" hidden><div class="search-box"><button id="closeSearch" aria-label="검색 닫기">×</button><label>뉴스 검색</label><input id="searchInput" placeholder="종목, 업종, 키워드를 입력하세요" autofocus><small>제목과 요약에서 바로 찾아드려요.</small></div></div>
+  <footer><a class="brand" href="#"><span class="brand-mark"><i></i><i></i><i></i></span><span>클로징벨</span></a><p>시장을 읽는 가장 간결한 방법.</p><span>투자 판단의 책임은 투자자 본인에게 있습니다.</span></footer>
+  <script src="/app.js"></script>
+</body></html>
