@@ -1,11 +1,15 @@
 {
-  "name": "closing-bell",
+  "name": "stock-pulse",
   "version": "1.0.0",
   "private": true,
-  "description": "오늘 장 마감 기준 국내 증시 뉴스 브리핑",
+  "description": "공시와 IR 중심의 한국 상장기업 리서치 앱",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test"
+    "test": "node --test",
+    "screenshot": "node scripts/screenshot.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.55.0"
   },
   "engines": { "node": ">=18" }
 }
