@@ -1,45 +1,39 @@
 <!doctype html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="국내 증시 마감 뉴스 10개를 한눈에 보는 클로징벨">
-  <title>클로징벨 — 오늘의 증시 브리핑</title>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="공시와 IR 원문을 근거로 읽는 한국 상장기업 리서치">
+  <title>STOCK PULSE — 기업 리서치</title>
   <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/styles.css">
 </head>
 <body>
-  <header class="topbar">
-    <a class="brand" href="#"><span class="brand-mark"><i></i><i></i><i></i></span><span>클로징벨</span></a>
-    <nav><a class="active" href="#briefing">오늘의 브리핑</a><a href="#market">마켓 요약</a><a href="#news">뉴스 아카이브</a></nav>
-    <div class="top-actions"><button class="icon-btn" aria-label="검색" id="openSearch">⌕</button><button class="icon-btn" aria-label="테마 전환" id="themeBtn">☾</button><button class="avatar" aria-label="내 프로필">JS</button></div>
-  </header>
-
-  <main>
-    <section class="hero" id="briefing">
-      <div><p class="eyebrow"><span></span> MARKET CLOSED · <b id="today"></b></p><h1>오늘 시장의 흐름,<br><em>10개의 뉴스</em>로 충분하게.</h1><p class="sub">장 마감 이후 꼭 알아야 할 국내 증시 이슈만 골라<br>읽기 쉽게 정리했어요.</p></div>
-      <div class="hero-art" aria-hidden="true"><div class="orb orb-a"></div><div class="orb orb-b"></div><div class="chart"><span style="height:25%"></span><span style="height:39%"></span><span style="height:33%"></span><span style="height:58%"></span><span style="height:50%"></span><span style="height:76%"></span><span style="height:67%"></span><span style="height:91%"></span></div><div class="float-card"><small>오늘의 시장 온도</small><strong>맑음 <b>72°</b></strong><div><i></i></div></div></div>
+  <header class="topbar"><a class="brand" href="#"><span class="brand-icon">S</span><span>STOCK <b>PULSE</b></span></a><nav><a class="active">기업 리서치</a><a>산업 리포트</a><a>관심 기업</a></nav><button class="help">?</button><button class="login">로그인</button></header>
+  <section class="search-hero">
+    <p>데이터 기반 기업 리서치</p><h1>기업의 숫자 너머,<br><em>투자의 맥락</em>을 읽다.</h1>
+    <div class="search-wrap"><span>⌕</span><input id="companyInput" value="삼성전자" placeholder="기업명 또는 6자리 종목코드를 입력하세요"><button id="searchBtn">분석하기 <b>→</b></button></div>
+    <div class="quick"><span>빠른 검색</span><button data-query="삼성전자">삼성전자</button><button data-query="SK하이닉스">SK하이닉스</button><button data-query="현대차">현대차</button><button data-query="NAVER">NAVER</button></div>
+  </section>
+  <div class="loading" id="loading" hidden><i></i><b>최신 공시와 IR 자료를 확인하고 있습니다</b><span>기업의 사업 구조에 맞는 분석 항목을 구성합니다.</span></div>
+  <main id="report">
+    <section class="company-head"><div class="company-title"><span class="company-logo">삼성</span><div><p><span class="market">KOSPI</span> <span id="code">005930</span></p><h2 id="companyName">삼성전자</h2><small>조사 기준일 <b id="asOf">2026. 09. 16</b> · 최신 재무 데이터 <b>2025. 12 (연결)</b></small></div></div><div class="quote"><small>현재가 <span>2026.09.15 종가</span></small><strong id="price">102,400원</strong><em>▲ 1,200&nbsp; +1.19%</em></div><div class="marketcap"><small>시가총액</small><strong>611.3조원</strong><span>코스피 1위</span></div></section>
+    <section class="workspace">
+      <aside><p>기업 분석 보고서</p><nav id="sideNav"></nav><div class="update-card"><span>✓</span><b>데이터 업데이트</b><small>공시·IR·시장 데이터<br>2026.09.16 확인</small></div></aside>
+      <article class="content">
+        <div class="report-meta"><span class="live">● 최신 자료 반영</span><span>연결재무제표 기준</span><button id="printBtn">⇩ 보고서 저장</button></div>
+        <section id="summary" class="report-section active">
+          <div class="section-label">01 · 핵심 요약</div><h2>핵심 요약</h2><p class="lead">메모리 업황 회복과 AI 수요가 이끄는 실적 반등,<br>다만 <b>HBM 경쟁력 회복 속도</b>가 재평가의 핵심입니다.</p>
+          <div class="thesis-grid"><div class="positive"><span>↗</span><small>핵심 성장 동력</small><b>AI 서버용 고부가 메모리</b><p>HBM·DDR5 중심의 제품 믹스 개선과 메모리 가격 회복이 수익성 개선을 견인합니다.</p></div><div class="risk"><span>!</span><small>가장 중요한 위험</small><b>파운드리 수율 및 적자 지속</b><p>선단공정 수율 개선 지연은 고정비 부담과 비메모리 경쟁력 약화로 연결됩니다.</p></div></div>
+          <div class="metric-title"><h3>핵심 투자지표</h3><span>단위: 조원, %, 배</span></div><div class="metrics" id="metrics"></div>
+          <div class="chart-panel"><div><small>5개년 실적 추이</small><h3>매출액 및 영업이익</h3></div><div class="legend"><i></i> 매출액 <i></i> 영업이익</div><div class="bars" id="bars"></div></div>
+          <div class="watch"><span>◎</span><div><small>다음 핵심 관찰 지표</small><h3>앞으로 가장 먼저 확인할 지표</h3><p><b>HBM 출하 증가율과 메모리 ASP</b> — 분기 실적보다 먼저 제품 믹스와 이익 방향을 보여주는 선행 지표입니다.</p></div><button data-section="schedule">관찰 지표 보기 →</button></div>
+        </section>
+        <section id="generic" class="report-section"></section>
+      </article>
     </section>
-
-    <section class="ticker" id="market">
-      <div class="ticker-title"><span class="pulse"></span><div><small>MARKET SNAPSHOT</small><strong>장 마감</strong></div></div>
-      <div class="index"><div><b>KOSPI</b><span>코스피</span></div><strong>2,689.74</strong><em class="up">▲ 18.29&nbsp; +0.68%</em></div>
-      <div class="index"><div><b>KOSDAQ</b><span>코스닥</span></div><strong>777.44</strong><em class="down">▼ 2.31&nbsp; −0.30%</em></div>
-      <div class="index"><div><b>USD/KRW</b><span>원·달러</span></div><strong>1,329.80</strong><em class="down">▼ 4.20&nbsp; −0.31%</em></div>
-      <p class="ticker-note">예시 지표 · 실시간 시세 아님</p>
-    </section>
-
-    <section class="news-section" id="news">
-      <div class="section-head"><div><p class="eyebrow dark">CLOSING BRIEF</p><h2>오늘의 주요 뉴스 <sup>10</sup></h2></div><div class="updated"><span>마지막 업데이트</span><b id="updated">불러오는 중…</b></div></div>
-      <div class="filters"><div id="filterButtons"><button class="selected" data-filter="전체">전체</button><button data-filter="반도체">반도체</button><button data-filter="바이오">바이오</button><button data-filter="수급">수급</button><button data-filter="환율">환율</button><button data-filter="정책">정책</button></div><button class="refresh" id="refresh">↻&nbsp; 새로고침</button></div>
-      <div class="news-list" id="newsList"><div class="skeleton"></div><div class="skeleton"></div><div class="skeleton"></div></div>
-      <div class="empty" id="empty" hidden>해당 주제의 뉴스가 없어요.<button data-reset>전체 뉴스 보기</button></div>
-    </section>
-
-    <section class="newsletter"><div><span class="mail-icon">✦</span><p>매일 장 마감 후,<br><b>핵심만 받아보세요.</b></p></div><form id="subscribe"><input type="email" required placeholder="이메일 주소를 입력해 주세요" aria-label="이메일 주소"><button>브리핑 구독하기 →</button></form></section>
   </main>
-  <div class="toast" id="toast" role="status"></div>
-  <div class="search-modal" id="searchModal" hidden><div class="search-box"><button id="closeSearch" aria-label="검색 닫기">×</button><label>뉴스 검색</label><input id="searchInput" placeholder="종목, 업종, 키워드를 입력하세요" autofocus><small>제목과 요약에서 바로 찾아드려요.</small></div></div>
-  <footer><a class="brand" href="#"><span class="brand-mark"><i></i><i></i><i></i></span><span>클로징벨</span></a><p>시장을 읽는 가장 간결한 방법.</p><span>투자 판단의 책임은 투자자 본인에게 있습니다.</span></footer>
+  <footer><b>STOCK PULSE</b><span>본 자료는 투자 판단을 위한 정보 정리이며 매수·매도 권유가 아니다.</span><small>데이터 오류 제보 · 이용약관</small></footer>
+  <div id="toast" class="toast"></div>
   <script src="/app.js"></script>
 </body></html>
