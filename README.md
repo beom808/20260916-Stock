@@ -35,3 +35,28 @@ npm run screenshot
 결과는 `artifacts/stock-pulse.png`에 저장됩니다. 사내 프록시 또는 패키지 정책이
 설치를 차단한다면 npm 레지스트리와 Playwright CDN 접근을 허용한 환경에서 위
 명령을 실행해야 합니다.
+
+## Firebase 연동 (Spark 무료 요금제)
+
+`public/firebase.js`가 Firebase Authentication(Google 로그인), Cloud Firestore,
+Analytics를 연결합니다. 빌드 과정 없이 CDN의 ES 모듈로 동작합니다.
+
+| 기능 | Firestore 경로 |
+| --- | --- |
+| 사용자 프로필 | `users/{uid}` |
+| 관심 기업 | `users/{uid}/watchlist/{종목코드 또는 n_기업명}` |
+| 기업별 메모 | `users/{uid}/memos/{종목코드 또는 n_기업명}` |
+
+Cloud Storage와 Cloud Functions는 사용하지 않습니다.
+
+### Firebase 콘솔 설정 (한 번만)
+
+1. **Authentication → 시작하기 → 로그인 방법 → Google** 사용 설정, 프로젝트 지원 이메일 선택 후 저장
+2. **Authentication → 설정 → 승인된 도메인**에 `stockhelper2.netlify.app` 추가
+   (`localhost`와 `*.firebaseapp.com`은 기본 포함)
+3. **Firestore Database → 데이터베이스 만들기** (프로덕션 모드로 시작, 리전은 `asia-northeast3`(서울) 권장 —
+   리전은 만든 뒤 변경할 수 없습니다)
+4. **Firestore Database → 규칙** 탭에 `firestore.rules` 내용을 붙여넣고 **게시**
+   (또는 `npx firebase-tools deploy --only firestore:rules`)
+
+`firebaseConfig`의 `apiKey` 등은 웹 앱 식별용 공개 값이며, 데이터는 `firestore.rules`로 보호됩니다.

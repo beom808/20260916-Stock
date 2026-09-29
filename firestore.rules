@@ -1,0 +1,41 @@
+rules_version = '2';
+
+// 로그인한 사용자는 자기 데이터(users/{본인 uid} 아래)만 읽고 쓸 수 있습니다.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isOwner(uid) {
+      return request.auth != null && request.auth.uid == uid;
+    }
+
+    match /users/{uid} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid)
+        && request.resource.data.keys().hasOnly(['displayName', 'email', 'photoURL', 'lastLoginAt']);
+      allow delete: if isOwner(uid);
+
+      // 관심 기업
+      match /watchlist/{key} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && request.resource.data.keys().hasOnly(['name', 'code', 'addedAt'])
+          && request.resource.data.name is string
+          && request.resource.data.name.size() <= 100;
+      }
+
+      // 기업별 메모
+      match /memos/{key} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && request.resource.data.keys().hasOnly(['name', 'text', 'updatedAt'])
+          && request.resource.data.text is string
+          && request.resource.data.text.size() <= 5000;
+      }
+    }
+
+    // 그 외 모든 경로는 차단
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
