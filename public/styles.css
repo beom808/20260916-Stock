@@ -32,3 +32,56 @@
 #watchList .empty{display:block;text-align:center;color:#8a94a5;font-size:12px;line-height:1.8;padding:28px 0}
 @media(max-width:800px){.user-chip span{display:none}.fav-btn{margin:0;padding:8px 10px;font-size:10px}.company-title{flex-wrap:wrap}.topbar{padding:0 14px}}
 @media print{.memo-card,.fav-btn,.watch-btn,.login,.user-chip{display:none}}
+
+/* 남색 테마 (화면 전용 — 인쇄는 기존 흰 배경 유지) */
+@media screen{
+:root{--ink:#e6ebf5;--muted:#93a1ba;--line:#243456;--bg:#0a1222;--blue-text:#86a5ff;--card:#101c34;--card-2:#14213a;--text-2:#a3b0c7;--text-3:#8896b0;--text-4:#8090ae;color-scheme:dark}
+html,body{background:#0b1426}
+.topbar{background:#0f1a30}
+.brand{color:#fff}
+.brand b,.search-hero>p,.search-hero h1 em,.market,.section-label,.lead b,.watch small,.watch button,.fact,footer b,.watch-btn b,aside nav button.active{color:var(--blue-text)}
+.topbar nav a{color:var(--text-3)}
+.topbar nav a.active{color:var(--ink)}
+.help{background:var(--card-2);color:var(--text-2)}
+.login{background:var(--blue)}
+.search-hero{background:linear-gradient(135deg,#10203f,#0b1426)}
+.search-wrap{background:var(--card-2);border-color:var(--line);box-shadow:0 10px 35px rgba(0,0,0,.4)}
+.search-wrap>span{color:var(--text-3)}
+.search-wrap input{background:transparent;color:var(--ink)}
+.search-wrap input::placeholder{color:var(--text-3)}
+.quick span{color:var(--text-3)}
+.quick button{background:var(--card-2);border-color:var(--line);color:var(--text-2)}
+.market,.fact{background:#172a55}
+.company-title p,.company-title small,.quote small,.marketcap small,.marketcap span,.thesis-grid small,.metric-title span,.metrics span,.chart-panel small,.bars b,.report-meta,.loading span,footer,aside>p,.memo-actions span{color:var(--text-3)}
+.quote small span,.metrics small i,aside nav button span{color:var(--text-4)}
+.detail-card p,.unavailable p,.thesis-grid p,.watch p,.report-meta button,.memo-card p,.metrics small,.legend,aside nav button,.user-chip button,.watch-head button{color:var(--text-2)}
+aside nav,.thesis-grid>div,.metrics,.chart-panel,.detail-card,.unavailable,.memo-card,.watch-btn,.fav-btn,.user-chip button{background:var(--card)}
+aside nav button{background:var(--card);border-bottom-color:#1c2a48}
+aside nav button.active{background:#172a55}
+aside nav button.active span{color:var(--blue-text)}
+.update-card{background:#15264a;border:1px solid var(--line)}
+.update-card small{color:var(--text-2)}
+.positive>span{background:#0f3a30;color:#4fd1a5}
+.risk>span{background:#421c25;color:#ff8585}
+.sales,.legend i:first-child{background:#4d78f5}
+.watch{background:#14264d;border-color:#24407a}
+.watch p{color:var(--text-2)}
+.loading{background:rgba(11,20,38,.92)}
+.loading i{border-color:var(--line);border-top-color:var(--blue)}
+.toast{background:#22355d;border:1px solid #3a5088}
+.fav-btn.on{background:#3a2f0a;border-color:#a8842a;color:#f2c94c}
+.memo-card button{background:var(--blue)}
+.memo-card textarea{background:#0b1426;color:var(--ink);border-color:var(--line)}
+.memo-card textarea::placeholder{color:var(--text-4)}
+.watch-dialog{background:var(--card);color:var(--ink);border:1px solid var(--line)}
+.watch-dialog::backdrop{background:rgba(0,0,0,.6)}
+.user-chip{color:var(--ink)}
+}
+
+/* 모바일 상단 바: 로그인 후에도 한 줄 유지 */
+@media(max-width:800px){
+.brand,.watch-btn,.user-chip button{white-space:nowrap}
+.topbar .help{display:none}
+.watch-btn{margin-left:auto}
+.login{margin-left:auto}
+}
