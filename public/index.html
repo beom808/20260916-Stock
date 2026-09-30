@@ -49,10 +49,11 @@
     <div class="ai-log" id="aiLog" aria-live="polite"></div>
     <div class="ai-quick" id="aiQuick"><button data-prompt="{기업}을(를) 한눈에 분석해줘. 사업 구조, 최근 실적 흐름, 핵심 투자 포인트와 위험을 정리해줘.">한눈에 분석</button><button data-prompt="{기업}의 최근 분기 실적을 요약하고 전년 동기 대비 변화를 알려줘.">최근 실적</button><button data-prompt="{기업}의 투자 포인트 3가지와 위험요인 3가지를 근거와 함께 알려줘.">투자 포인트·위험</button><button data-prompt="{기업}의 밸류에이션(PER, PBR)을 경쟁사와 비교해줘. 기준 시점도 밝혀줘.">밸류에이션</button><button data-prompt="{기업}의 배당과 자사주 등 주주환원 정책을 정리해줘.">주주환원</button></div>
     <form class="ai-composer" id="aiComposer"><textarea id="aiInput" rows="1" maxlength="4000"></textarea><button id="aiSend" aria-label="보내기">↑</button><button id="aiStop" type="button" hidden aria-label="중지">■</button></form>
-    <label class="ai-check ai-search"><input type="checkbox" id="aiSearch"> Google 검색으로 최신 정보 확인 (출처 표시)</label>
+    <label class="ai-check ai-search"><input type="checkbox" id="aiSearch"> Google 검색으로 최신 정보 확인 (채팅·메뉴 분석 공통)</label>
   </section>
   <div id="toast" class="toast"></div>
   <script src="/app.js"></script>
   <script type="module" src="/firebase.js"></script>
   <script type="module" src="/ai-chat.js"></script>
+  <script type="module" src="/ai-sections.js"></script>
 </body></html>
