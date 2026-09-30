@@ -69,5 +69,7 @@ Cloud Storage와 Cloud Functions는 사용하지 않습니다.
 - **API 키는 사용자가 직접 입력**합니다. 키는 [Google AI Studio](https://aistudio.google.com/apikey)에서 발급합니다.
 - 키는 입력한 사람의 브라우저(`localStorage`, "기억하기" 해제 시 `sessionStorage`)에만 저장되고,
   Gemini API 요청 헤더(`x-goog-api-key`)로만 전송됩니다. 사이트 서버나 Firestore에는 저장하지 않습니다.
-- **Google 검색으로 최신 정보 확인**을 켜면 Gemini의 Google 검색 연동을 사용하고 출처 링크를 표시합니다.
+- **Google 검색으로 최신 정보 확인**(기본 꺼짐)을 켜면 Gemini의 Google 검색 연동을 사용하고 출처 링크를 표시합니다.
+  무료 API 키에서는 Gemini 3.x 모델의 검색 연동이 막혀 있을 수 있어, 검색 요청이 429(한도 초과)로 거절되면
+  검색 없이 한 번 다시 시도하고 검색 옵션을 끕니다. 오류가 나면 Google이 보낸 원문 메시지를 함께 표시합니다.
 - 답변은 사실·분석·추정·의견을 구분하고 기준 시점을 밝히도록 지시되어 있지만, AI 답변은 틀릴 수 있습니다.

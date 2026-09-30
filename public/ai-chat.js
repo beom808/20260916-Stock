@@ -110,11 +110,12 @@ $('#aiKeyDelete').addEventListener('click', () => {
 });
 
 const searchBox = $('#aiSearch');
-searchBox.checked = store.get(SEARCH_PREF) !== 'off';
+// 무료 키에서는 Gemini 3.x 모델의 검색 연동이 막혀 있을 수 있어 기본은 꺼 둡니다.
+searchBox.checked = store.get(SEARCH_PREF) === 'on';
 searchBox.addEventListener('change', () => store.set(SEARCH_PREF, searchBox.checked ? 'on' : 'off', true));
 
 // ---------- 대화 ----------
-function systemPrompt() {
+function systemPrompt(useSearch) {
   const c = currentCompany();
   const today = new Date().toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: 'long', day: 'numeric' });
   // 삼성전자 외 기업은 화면 수치가 데모(삼성전자 값)이므로 넘기지 않습니다.
@@ -131,6 +132,8 @@ function systemPrompt() {
     '4. 검색 결과를 쓸 때는 공시(DART)·거래소·기업 IR 같은 1차 자료를 우선하고, 출처끼리 다르면 차이를 알려준다.',
     '5. 미래 전망은 확정된 사실처럼 말하지 않는다. 매수·매도를 권유하지 않는다.',
     '6. 한국어로, 핵심 결론을 먼저 쓰고 근거를 짧은 목록으로 정리한다. 불필요하게 길게 쓰지 않는다.',
+    useSearch ? '7. Google 검색으로 최신 자료를 확인한 뒤 답한다.'
+      : '7. 지금은 검색을 쓸 수 없다. 학습 데이터 이후의 최신 실적·주가·공시는 모른다고 밝히고, 알고 있는 정보는 어느 시점 기준인지 함께 쓴다.',
     pageData ? `\n참고: 사이트 화면에 표시된 값(프로토타입이라 검증되지 않았으며 틀릴 수 있음. 사실로 인용하지 말고 필요하면 검증이 필요하다고 말할 것):\n${pageData}` : ''
   ].join('\n');
 }
@@ -162,17 +165,29 @@ async function send(text) {
 
   let answer = '';
   let sources = [];
+  let searchFallback = false;
   try {
-    const res = await fetch(ENDPOINT, {
+    const call = search => fetch(ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
       body: JSON.stringify({
-        system_instruction: { parts: [{ text: systemPrompt() }] },
+        system_instruction: { parts: [{ text: systemPrompt(search) }] },
         contents: history.slice(-MAX_TURNS).map(m => ({ role: m.role, parts: [{ text: m.text }] })),
-        ...(useSearch ? { tools: [{ google_search: {} }] } : {})
+        ...(search ? { tools: [{ google_search: {} }] } : {})
       }),
       signal: controller.signal
     });
+    let res = await call(useSearch);
+    if (res.status === 429 && useSearch) {
+      // 무료 키는 검색 연동 한도가 0일 수 있습니다. 검색 없이 한 번만 다시 시도합니다.
+      await res.body?.cancel();
+      res = await call(false);
+      if (res.ok) {
+        searchFallback = true;
+        searchBox.checked = false;
+        store.set(SEARCH_PREF, 'off', true);
+      }
+    }
     if (!res.ok) throw await apiError(res);
 
     const reader = res.body.getReader();
@@ -199,7 +214,8 @@ async function send(text) {
     }
     if (!answer.trim()) throw new Error('응답이 비어 있습니다. 질문을 바꿔 다시 시도해 주세요.');
     history.push({ role: 'model', text: answer });
-    bubble.innerHTML = renderMarkdown(answer) + renderSources(sources);
+    bubble.innerHTML = (searchFallback ? '<p class="ai-note">Google 검색을 켠 요청이 한도 초과로 거절되어 검색 없이 답변했습니다. 이 API 키로는 검색 연동을 쓸 수 없는 것으로 보여 검색 옵션을 껐습니다. 최신 정보가 반영되지 않았을 수 있습니다.</p>' : '')
+      + renderMarkdown(answer) + renderSources(sources);
   } catch (err) {
     history.pop(); // 실패한 질문은 대화 기록에서 뺍니다.
     if (!history.length) $('#aiQuick').hidden = false;
@@ -209,7 +225,7 @@ async function send(text) {
       else bubble.remove();
     } else {
       bubble.classList.add('error');
-      bubble.innerHTML = `<p>${escapeHtml(err.message)}</p>`;
+      bubble.innerHTML = `<p>${escapeHtml(err.message)}</p>` + (err.detail ? `<p class="ai-note">Google 응답 원문: ${escapeHtml(err.detail)}</p>` : '');
     }
   } finally {
     controller = null;
@@ -222,13 +238,15 @@ async function apiError(res) {
   let message = '';
   try { message = (await res.json()).error?.message || ''; } catch {}
   const text = {
-    400: /api key/i.test(message) ? 'API 키가 올바르지 않습니다. 키를 다시 확인해 주세요.' : `요청 형식 오류입니다. (${message})`,
+    400: /api key/i.test(message) ? 'API 키가 올바르지 않습니다. 키를 다시 확인해 주세요.' : '요청 형식 오류입니다.',
     401: 'API 키가 올바르지 않습니다.',
     403: 'API 키에 Gemini API 사용 권한이 없거나 이 사이트에서의 사용이 제한되어 있습니다. Google AI Studio에서 키 설정을 확인해 주세요.',
     404: `모델(${MODEL})을 찾을 수 없습니다. 모델 이름이 바뀌었거나 이 키로 사용할 수 없는 모델일 수 있습니다.`,
-    429: '사용 한도를 초과했습니다. 잠시 후 다시 시도하거나 Google AI Studio에서 사용량을 확인해 주세요.'
-  }[res.status] || `Gemini API 오류(${res.status})가 발생했습니다. ${message}`;
-  return new Error(text);
+    429: '사용 한도를 초과했습니다. 1분쯤 뒤 다시 시도해 보고, 계속되면 Google AI Studio에서 이 키의 사용량과 한도를 확인해 주세요.'
+  }[res.status] || `Gemini API 오류(${res.status})가 발생했습니다.`;
+  const err = new Error(text);
+  err.detail = message.slice(0, 600);
+  return err;
 }
 
 function setBusy(busy) {
