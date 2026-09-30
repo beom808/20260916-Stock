@@ -142,3 +142,30 @@ aside nav button.active span{color:var(--blue-text)}
 .ai-search{padding:0 16px 12px}
 @media(max-width:800px){.ai-fab{right:16px;bottom:16px}.ai-panel{right:0;bottom:0;width:100vw;height:100dvh;border-radius:0;border:0}}
 @media print{.ai-fab,.ai-panel{display:none!important}}
+
+/* 메뉴별 AI 분석 카드 */
+.ai-section{margin:4px 0 22px;background:#101c34;border:1px solid #2a3d66;border-left:3px solid #6a4cf0;border-radius:8px;padding:18px 22px}
+.ai-section-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.ai-section-badge{font-size:11px;font-weight:800;color:#b9a8ff;background:#241c4a;border-radius:4px;padding:4px 8px}
+.ai-section-meta{flex:1;min-width:0;font-size:10px;color:#93a1ba}
+.ai-section-head button{border:1px solid #2a3d66;background:#14213a;color:#c7d1e3;font-size:10.5px;padding:5px 10px;border-radius:5px}
+.ai-section-head button[hidden]{display:none}
+.ai-section-body{font-size:13px;line-height:1.8;color:#e6ebf5;overflow-wrap:anywhere}
+.ai-section-body p{margin:0 0 8px}
+.ai-section-body h4{margin:14px 0 6px;font-size:14px;color:#fff}
+.ai-section-body ul,.ai-section-body ol{margin:4px 0 10px;padding-left:20px}
+.ai-section-body li{margin:3px 0}
+.ai-section-body code{background:#0b1426;padding:1px 4px;border-radius:3px;font-size:12px}
+.ai-section-body hr{border:0;border-top:1px solid #2a3d66;margin:12px 0}
+.ai-section-body .tag{display:inline-block;font-size:10px;font-weight:700;padding:1px 5px;border-radius:3px;margin-right:4px;vertical-align:1px}
+.ai-section-body .ai-sources{margin-top:12px}
+.ai-section-empty{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.ai-section-empty p{flex:1;margin:0;color:#a3b0c7}
+.ai-section-empty button{border:0;background:#315ee9;color:#fff;font-size:11px;font-weight:700;padding:9px 14px;border-radius:5px}
+.ai-section-error{background:#3a1822;border:1px solid #6b2a3a;border-radius:6px;padding:10px 14px;color:#ffb3b3}
+.ai-table{overflow-x:auto;margin:6px 0 12px}
+.ai-table table{border-collapse:collapse;width:100%;font-size:12px}
+.ai-table th,.ai-table td{border:1px solid #2a3d66;padding:6px 9px;text-align:left;vertical-align:top}
+.ai-table th{background:#172a55;color:#dbe4ff;white-space:nowrap}
+.ai-msg .ai-table table{font-size:11px}
+@media print{.ai-section{border:1px solid #ccc;background:#fff;color:#000}.ai-section-head button{display:none}.ai-section-body,.ai-section-body h4{color:#000}.ai-table th{background:#eee;color:#000}.ai-table th,.ai-table td{border-color:#ccc}}
