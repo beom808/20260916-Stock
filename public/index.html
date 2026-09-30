@@ -36,7 +36,23 @@
   </main>
   <footer><b>STOCK PULSE</b><span>본 자료는 투자 판단을 위한 정보 정리이며 매수·매도 권유가 아니다.</span><small>데이터 오류 제보 · 이용약관</small></footer>
   <dialog id="watchDialog" class="watch-dialog"><div class="watch-head"><h3>내 관심 기업</h3><button id="watchClose" aria-label="닫기">✕</button></div><ul id="watchList"></ul></dialog>
+  <button class="ai-fab" id="aiFab" aria-controls="aiPanel" aria-expanded="false"><span>✦</span> AI 분석</button>
+  <section class="ai-panel" id="aiPanel" role="dialog" aria-labelledby="aiTitle" hidden>
+    <header class="ai-head"><div><h3 id="aiTitle">AI 기업 분석</h3><small><span id="aiCompany"></span> · Gemini 3.5 Flash-Lite</small></div><button id="aiReset" title="새 대화">새 대화</button><button id="aiClose" aria-label="닫기">✕</button></header>
+    <form class="ai-key" id="aiKeyForm" hidden>
+      <label for="aiKeyInput"><b>Gemini API 키</b> 입력 <a href="https://aistudio.google.com/apikey" target="_blank" rel="noopener noreferrer">키 발급받기 ↗</a></label>
+      <div class="ai-key-row"><input id="aiKeyInput" type="password" autocomplete="off" spellcheck="false" placeholder="AIza..."><button>저장</button></div>
+      <label class="ai-check"><input type="checkbox" id="aiRemember" checked> 이 기기에 기억하기 (공용 PC에서는 해제하세요)</label>
+      <p>키는 이 브라우저에만 저장되고 Google Gemini API로만 전송됩니다. 사이트 서버나 데이터베이스에는 저장하지 않습니다.</p>
+    </form>
+    <div class="ai-key-status" id="aiKeyStatus" hidden><span>🔑 API 키 <em id="aiKeyWhere"></em></span><button id="aiKeyChange" type="button">변경</button><button id="aiKeyDelete" type="button">삭제</button></div>
+    <div class="ai-log" id="aiLog" aria-live="polite"></div>
+    <div class="ai-quick" id="aiQuick"><button data-prompt="{기업}을(를) 한눈에 분석해줘. 사업 구조, 최근 실적 흐름, 핵심 투자 포인트와 위험을 정리해줘.">한눈에 분석</button><button data-prompt="{기업}의 최근 분기 실적을 요약하고 전년 동기 대비 변화를 알려줘.">최근 실적</button><button data-prompt="{기업}의 투자 포인트 3가지와 위험요인 3가지를 근거와 함께 알려줘.">투자 포인트·위험</button><button data-prompt="{기업}의 밸류에이션(PER, PBR)을 경쟁사와 비교해줘. 기준 시점도 밝혀줘.">밸류에이션</button><button data-prompt="{기업}의 배당과 자사주 등 주주환원 정책을 정리해줘.">주주환원</button></div>
+    <form class="ai-composer" id="aiComposer"><textarea id="aiInput" rows="1" maxlength="4000"></textarea><button id="aiSend" aria-label="보내기">↑</button><button id="aiStop" type="button" hidden aria-label="중지">■</button></form>
+    <label class="ai-check ai-search"><input type="checkbox" id="aiSearch"> Google 검색으로 최신 정보 확인 (출처 표시)</label>
+  </section>
   <div id="toast" class="toast"></div>
   <script src="/app.js"></script>
   <script type="module" src="/firebase.js"></script>
+  <script type="module" src="/ai-chat.js"></script>
 </body></html>

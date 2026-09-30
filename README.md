@@ -60,3 +60,14 @@ Cloud Storage와 Cloud Functions는 사용하지 않습니다.
    (또는 `npx firebase-tools deploy --only firestore:rules`)
 
 `firebaseConfig`의 `apiKey` 등은 웹 앱 식별용 공개 값이며, 데이터는 `firestore.rules`로 보호됩니다.
+
+## AI 기업 분석 채팅 (Google Gemini)
+
+오른쪽 아래 **AI 분석** 버튼으로 현재 보고 있는 기업에 대해 질문할 수 있습니다.
+코드는 `public/ai-chat.js`이며 모델은 `gemini-3.5-flash-lite`입니다.
+
+- **API 키는 사용자가 직접 입력**합니다. 키는 [Google AI Studio](https://aistudio.google.com/apikey)에서 발급합니다.
+- 키는 입력한 사람의 브라우저(`localStorage`, "기억하기" 해제 시 `sessionStorage`)에만 저장되고,
+  Gemini API 요청 헤더(`x-goog-api-key`)로만 전송됩니다. 사이트 서버나 Firestore에는 저장하지 않습니다.
+- **Google 검색으로 최신 정보 확인**을 켜면 Gemini의 Google 검색 연동을 사용하고 출처 링크를 표시합니다.
+- 답변은 사실·분석·추정·의견을 구분하고 기준 시점을 밝히도록 지시되어 있지만, AI 답변은 틀릴 수 있습니다.
