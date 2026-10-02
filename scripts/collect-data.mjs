@@ -3,7 +3,7 @@
 // 기업별 JSON 파일을 만듭니다. 결과는 data 브랜치에 올라가고, 사이트가 직접 읽습니다.
 //
 // 사용법: node scripts/collect-data.mjs <출력폴더>
-// 필요한 환경변수: DART_API_KEY, DATA_GO_KR_KEY, NAVER_API_KEY_ID, NAVER_API_KEY_SECRET
+// 필요한 환경변수: DART_API_KEY, DATA_GO_KR_KEY, NAVER_API_KEY_ID, NAVER_API_KEY_SECRET, ECOS_API_KEY
 // 키가 없는 출처는 건너뛰고, 실패한 출처는 meta.json의 errors에 기록합니다(키 값은 기록하지 않음).
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { inflateRawSync } from 'node:zlib';
@@ -15,6 +15,7 @@ const PRICE = 'https://apis.data.go.kr/1160100/service/GetStockSecuritiesInfoSer
 const LISTED = 'https://apis.data.go.kr/1160100/service/GetKrxListedInfoService/getItemInfo';
 const TRADE = 'https://apis.data.go.kr/1220000/Itemtrade/getItemtradeList';
 const NEWS = 'https://naverapihub.apigw.ntruss.com/search/v1/news';
+const ECOS = 'https://ecos.bok.or.kr/api/StatisticSearch';
 const SEMI_HS = '8542'; // 전자집적회로(반도체)
 const REPORTS = { 11013: '1분기', 11012: '반기', 11014: '3분기', 11011: '사업보고서' };
 
@@ -30,6 +31,10 @@ const num = v => {
 const ymd = d => d.toISOString().slice(0, 10).replace(/-/g, '');
 const daysAgo = (n, now) => new Date(now.getTime() - n * 864e5);
 const hideSecrets = s => String(s).replace(/(crtfc_key|serviceKey)=[^&\s]+/gi, '$1=***');
+const SECRET_NAMES = ['DART_API_KEY', 'DATA_GO_KR_KEY', 'NAVER_API_KEY_ID', 'NAVER_API_KEY_SECRET', 'ECOS_API_KEY'];
+// 오류 메시지에서 키 값을 가립니다(ECOS는 키가 URL 경로에 들어갑니다).
+export const maskSecrets = (msg, env) => SECRET_NAMES.map(n => env[n]).filter(k => k && k.length >= 4)
+  .reduce((m, k) => m.split(k).join('***').split(encodeURIComponent(k)).join('***'), hideSecrets(msg));
 const stripTags = s => String(s || '').replace(/<[^>]+>/g, '').replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').trim();
 const asArray = v => (Array.isArray(v) ? v : v ? [v] : []);
 
@@ -37,7 +42,7 @@ export function createClient({ env = process.env, fetchImpl = fetch, delay = 120
   async function get(url, opts = {}) {
     await sleep(delay);
     const res = await fetchImpl(url, opts);
-    if (!res.ok) throw new Error(`HTTP ${res.status} ${hideSecrets(url.split('?')[0])}`);
+    if (!res.ok) throw new Error(maskSecrets(`HTTP ${res.status} ${url.split('?')[0]}`, env));
     return res;
   }
 
@@ -87,7 +92,18 @@ export function createClient({ env = process.env, fetchImpl = fetch, delay = 120
     return asArray(body.items).map(i => ({ title: stripTags(i.title), summary: stripTags(i.description), url: i.originallink || i.link, date: i.pubDate ? new Date(i.pubDate).toISOString() : null }));
   }
 
-  return { dart, corpCodes, dataGo, tradeXml, news };
+  // ---------- 한국은행 ECOS ----------
+  async function ecos(stat, cycle, start, end, item) {
+    const url = `${ECOS}/${encodeURIComponent(env.ECOS_API_KEY)}/json/kr/1/1000/${stat}/${cycle}/${start}/${end}/${item}`;
+    const body = await (await get(url)).json();
+    if (body.RESULT) {
+      if (body.RESULT.CODE === 'INFO-200') return []; // 해당 데이터 없음
+      throw new Error(maskSecrets(`ECOS ${body.RESULT.CODE} ${body.RESULT.MESSAGE}`, env));
+    }
+    return asArray(body.StatisticSearch?.row).map(r => ({ time: r.TIME, value: num(r.DATA_VALUE), unit: r.UNIT_NAME, name: r.ITEM_NAME1 })).filter(r => r.time && r.value !== null);
+  }
+
+  return { dart, corpCodes, dataGo, tradeXml, news, ecos };
 }
 
 // ---------- 파싱 ----------
@@ -204,7 +220,7 @@ export function valuation(price, annual, dividends) {
 // ---------- 수집 ----------
 export async function collectCompany(api, env, { code, name }, corpMap, now) {
   const errors = [];
-  const tryIt = async (label, fn) => { try { return await fn(); } catch (e) { errors.push(`${code} ${label}: ${hideSecrets(e.message)}`); return null; } };
+  const tryIt = async (label, fn) => { try { return await fn(); } catch (e) { errors.push(`${code} ${label}: ${maskSecrets(e.message, env)}`); return null; } };
   const out = { code, name, updatedAt: now.toISOString() };
   const corp = corpMap.get(code);
 
@@ -288,6 +304,31 @@ async function listedStocks(api, now) {
   return [];
 }
 
+// 거시지표: 원/달러 환율(일별, 최근 1년)과 한국은행 기준금리(월별, 최근 5년)
+const MACRO = [
+  { key: 'usdkrw', label: '원/달러 환율(매매기준율)', tries: [['731Y001', 'D', '0000001'], ['731Y003', 'D', '0000003']], days: 400 },
+  { key: 'baseRate', label: '한국은행 기준금리', tries: [['722Y001', 'M', '0101000'], ['722Y001', 'D', '0101000']], days: 365 * 5 }
+];
+async function macroIndicators(api, now) {
+  const out = { updatedAt: now.toISOString() };
+  const errors = [];
+  for (const m of MACRO) {
+    for (const [stat, cycle, item] of m.tries) {
+      const start = daysAgo(m.days, now);
+      const fmt = d => (cycle === 'M' ? ymd(d).slice(0, 6) : ymd(d));
+      try {
+        const rows = await api.ecos(stat, cycle, fmt(start), fmt(now), item);
+        if (!rows.length) continue;
+        rows.sort((a, b) => a.time.localeCompare(b.time));
+        out[m.key] = { label: m.label, stat, item, cycle, unit: rows[0].unit, rows: rows.map(r => [r.time, r.value]) };
+        break;
+      } catch (e) { errors.push(`ECOS ${m.label}(${stat}): ${e.message}`); }
+    }
+    if (!out[m.key]) errors.push(`ECOS ${m.label}: 데이터를 받지 못했습니다.`);
+  }
+  return { macro: out, errors };
+}
+
 async function semiconductorExports(api, now) {
   // 매월 15일경 전월까지 갱신되므로 2개월 전까지의 최근 12개월을 조회합니다.
   const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 2, 1));
@@ -304,14 +345,14 @@ export async function run({ outDir, env = process.env, api = createClient({ env 
 
   let corpList = [];
   if (env.DART_API_KEY) {
-    try { corpList = await api.corpCodes(); sources.dart = 'ok'; } catch (e) { errors.push('OpenDART 고유번호: ' + hideSecrets(e.message)); sources.dart = 'error'; }
+    try { corpList = await api.corpCodes(); sources.dart = 'ok'; } catch (e) { errors.push('OpenDART 고유번호: ' + maskSecrets(e.message, env)); sources.dart = 'error'; }
   } else sources.dart = 'no-key';
   const corpMap = new Map(corpList.map(c => [c.code, c]));
 
   // 검색용 종목 목록: KRX 상장종목(시장 구분 포함)을 우선 사용하고, 실패하면 DART 목록을 씁니다.
   let stocks = [];
   if (env.DATA_GO_KR_KEY) {
-    try { stocks = await listedStocks(api, now); sources.krxListed = stocks.length ? 'ok' : 'empty'; } catch (e) { errors.push('KRX상장종목: ' + hideSecrets(e.message)); sources.krxListed = 'error'; }
+    try { stocks = await listedStocks(api, now); sources.krxListed = stocks.length ? 'ok' : 'empty'; } catch (e) { errors.push('KRX상장종목: ' + maskSecrets(e.message, env)); sources.krxListed = 'error'; }
   } else sources.krxListed = 'no-key';
   if (!stocks.length) stocks = corpList.map(c => ({ code: c.code, name: c.name }));
   const collected = new Set(companies.map(c => c.code));
@@ -325,9 +366,15 @@ export async function run({ outDir, env = process.env, api = createClient({ env 
 
   let trade = null;
   if (env.DATA_GO_KR_KEY) {
-    try { trade = await semiconductorExports(api, now); sources.customs = trade.months.length ? 'ok' : 'empty'; } catch (e) { errors.push('관세청 수출입: ' + hideSecrets(e.message)); sources.customs = 'error'; }
+    try { trade = await semiconductorExports(api, now); sources.customs = trade.months.length ? 'ok' : 'empty'; } catch (e) { errors.push('관세청 수출입: ' + maskSecrets(e.message, env)); sources.customs = 'error'; }
     if (trade) await writeFile(path.join(outDir, 'trade.json'), JSON.stringify(trade));
   } else sources.customs = 'no-key';
+  if (env.ECOS_API_KEY) {
+    const { macro, errors: e } = await macroIndicators(api, now);
+    errors.push(...e.map(x => maskSecrets(x, env)));
+    sources.ecos = macro.usdkrw || macro.baseRate ? (e.length ? 'partial' : 'ok') : 'error';
+    await writeFile(path.join(outDir, 'macro.json'), JSON.stringify(macro));
+  } else sources.ecos = 'no-key';
   sources.dataGoPrice = env.DATA_GO_KR_KEY ? 'used' : 'no-key';
   sources.naverNews = env.NAVER_API_KEY_ID && env.NAVER_API_KEY_SECRET ? 'used' : 'no-key';
 

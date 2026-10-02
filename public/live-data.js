@@ -8,6 +8,7 @@ const safeUrl = u => (/^https:\/\//.test(u || '') ? esc(u) : '');
 const cache = new Map();
 let meta = null;
 let trade = null;
+let macro = null;
 let current = null; // 현재 기업 데이터 (없으면 null)
 let currentCode = null;
 
@@ -145,19 +146,50 @@ const SECTIONS = {
     return parts.join('');
   },
   risks: d => d.news?.length && '<h4 class="live-sub">최근 뉴스 (위험 신호 점검용)</h4>' + newsList(d.news),
-  industry: d => trade?.months?.length && /^26/.test(d.profile?.industryCode || '') && `<p class="live-cap">${esc(trade.label)} 월별 수출입 (단위: 백만 달러)</p>`
-    + table(['월', '수출', '수입', '무역수지'], trade.months.slice(-12).map(m => [m.month, musd(m.exports), musd(m.imports), musd(m.balance)].map(esc))) + '<p class="live-src">출처: 관세청 품목별 수출입실적 (매월 15일경 전월까지 갱신)</p>',
-  schedule: d => d.disclosures?.length && `<p class="live-cap">최근 공시 (최근 120일, 최신순)</p><ul class="live-list">${d.disclosures.slice(0, 15).map(x => `<li><a href="${safeUrl(x.url)}" target="_blank" rel="noopener noreferrer">${esc(x.title)}</a><small>${esc(dateDot(x.date))}</small></li>`).join('')}</ul><p class="live-src">출처: OpenDART 공시검색. 향후 일정은 공시된 내용만 확인할 수 있습니다.</p>`,
+  industry: d => ((trade?.months?.length && /^26/.test(d.profile?.industryCode || '') ? `<p class="live-cap">${esc(trade.label)} 월별 수출입 (단위: 백만 달러)</p>`
+    + table(['월', '수출', '수입', '무역수지'], trade.months.slice(-12).map(m => [m.month, musd(m.exports), musd(m.imports), musd(m.balance)].map(esc))) + '<p class="live-src">출처: 관세청 품목별 수출입실적 (매월 15일경 전월까지 갱신)</p>' : '') + macroCard()) || null,
+  schedule: d => (macroCard() + (d.disclosures?.length ? `<h4 class="live-sub">최근 공시 (최근 120일, 최신순)</h4><ul class="live-list">${d.disclosures.slice(0, 15).map(x => `<li><a href="${safeUrl(x.url)}" target="_blank" rel="noopener noreferrer">${esc(x.title)}</a><small>${esc(dateDot(x.date))}</small></li>`).join('')}</ul><p class="live-src">출처: OpenDART 공시검색. 향후 일정은 공시된 내용만 확인할 수 있습니다.</p>` : '')) || null,
   sources: d => `<ul class="live-list">${[
     ['OpenDART (금융감독원)', 'https://opendart.fss.or.kr', '기업개황·재무제표·배당·공시'],
     ['공공데이터포털 금융위원회_주식시세정보', 'https://www.data.go.kr/data/15094808/openapi.do', '주가·시가총액'],
     ['공공데이터포털 KRX상장종목정보', 'https://www.data.go.kr/data/15094775/openapi.do', '종목 검색 목록'],
     ['관세청 품목별 수출입실적', 'https://www.data.go.kr/data/15101609/openapi.do', '반도체 수출입'],
-    ['네이버 뉴스 검색 (NAVER API HUB)', 'https://www.ncloud.com/product/applicationService/naverApiHub', '최근 뉴스']
+    ['네이버 뉴스 검색 (NAVER API HUB)', 'https://www.ncloud.com/product/applicationService/naverApiHub', '최근 뉴스'],
+    ['한국은행 경제통계시스템(ECOS)', 'https://ecos.bok.or.kr', '원/달러 환율·기준금리']
   ].map(([n, u, w]) => `<li><a href="${u}" target="_blank" rel="noopener noreferrer">${n}</a><small>${w}</small></li>`).join('')}</ul>`
     + (d.disclosures?.length ? `<h4 class="live-sub">이 기업의 최근 공시 원문</h4><ul class="live-list">${d.disclosures.slice(0, 8).map(x => `<li><a href="${safeUrl(x.url)}" target="_blank" rel="noopener noreferrer">${esc(x.title)}</a><small>${esc(dateDot(x.date))}</small></li>`).join('')}</ul>` : '')
     + `<p class="live-src">수집 시각: ${esc(new Date(d.updatedAt).toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' }))}</p>`
 };
+// 한국은행 ECOS 거시지표 (원/달러 환율, 기준금리)
+const periodDot = t => (/^\d{8}$/.test(t) ? dateDot(t) : /^\d{6}$/.test(t) ? `${t.slice(0, 4)}.${t.slice(4)}` : t);
+function macroStats() {
+  const fx = macro?.usdkrw?.rows, br = macro?.baseRate?.rows;
+  const out = {};
+  if (fx?.length) {
+    const last = fx.at(-1);
+    const ago = days => { const t = new Date(`${last[0].slice(0, 4)}-${last[0].slice(4, 6)}-${last[0].slice(6)}T00:00:00Z`); t.setUTCDate(t.getUTCDate() - days); const k = t.toISOString().slice(0, 10).replace(/-/g, ''); return [...fx].reverse().find(r => r[0] <= k); };
+    const m1 = ago(30);
+    const year = fx.filter(r => r[0] >= (ago(365) || fx[0])[0]).map(r => r[1]);
+    out.fx = { date: last[0], value: last[1], m1: m1 ? (last[1] / m1[1] - 1) * 100 : null, high: Math.max(...year), low: Math.min(...year) };
+  }
+  if (br?.length) {
+    const last = br.at(-1);
+    const change = [...br].reverse().find(r => r[1] !== last[1]);
+    const idx = change ? br.findIndex(r => r === change) + 1 : 0;
+    out.br = { date: last[0], value: last[1], since: br[idx]?.[0], prev: change?.[1] };
+  }
+  return out;
+}
+function macroCard() {
+  const m = macroStats();
+  if (!m.fx && !m.br) return '';
+  const rows = [];
+  if (m.fx) rows.push(['원/달러 환율', `${m.fx.value.toLocaleString('ko-KR', { maximumFractionDigits: 2 })}원`, `${periodDot(m.fx.date)} · 1개월 ${signPct(m.fx.m1)} · 1년 ${m.fx.low.toLocaleString('ko-KR')}~${m.fx.high.toLocaleString('ko-KR')}원`]);
+  if (m.br) rows.push(['한국은행 기준금리', `${m.br.value}%`, `${periodDot(m.br.date)} 기준${m.br.prev != null ? ` · ${periodDot(m.br.since)}부터 (이전 ${m.br.prev}%)` : ''}`]);
+  return '<h4 class="live-sub">거시지표</h4>' + (macro.usdkrw ? sparkline(macro.usdkrw.rows.map(r => [r[0], r[1]]), '원/달러 환율') : '')
+    + table(['지표', '값', '기준·변화'], rows.map(r => r.map(esc))) + '<p class="live-src">출처: 한국은행 경제통계시스템(ECOS) — 원/달러 매매기준율(일별), 기준금리</p>';
+}
+
 function fmt(v) { return v == null ? '-' : v.toLocaleString('ko-KR'); }
 function musd(v) { return v == null ? '-' : (v / 1e6).toLocaleString('ko-KR', { maximumFractionDigits: 0 }); }
 function linkOrText(u) {
@@ -165,12 +197,12 @@ function linkOrText(u) {
   const href = (/^https?:\/\//i.test(u) ? u : `https://${u}`).replace(/^http:/i, 'https:');
   return /^https:\/\/[^\s"'<>]+$/.test(href) ? `<a href="${esc(href)}" target="_blank" rel="noopener noreferrer">${esc(u)}</a>` : esc(u);
 }
-function sparkline(history) {
+function sparkline(history, label = '종가') {
   const pts = (history || []).map(h => h[1]).filter(Boolean);
   if (pts.length < 2) return '';
   const min = Math.min(...pts), max = Math.max(...pts), w = 600, h = 120;
   const xy = pts.map((v, i) => `${(i / (pts.length - 1) * w).toFixed(1)},${(h - (v - min) / (max - min || 1) * (h - 10) - 5).toFixed(1)}`).join(' ');
-  return `<p class="live-cap">최근 1년 종가 (${esc(dateDot(history[0][0]))} ~ ${esc(dateDot(history.at(-1)[0]))})</p><svg class="live-spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="최근 1년 종가 추이"><polyline points="${xy}" fill="none" stroke="#86a5ff" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>`;
+  return `<p class="live-cap">최근 1년 ${esc(label)} (${esc(dateDot(history[0][0]))} ~ ${esc(dateDot(history.at(-1)[0]))})</p><svg class="live-spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="최근 1년 ${esc(label)} 추이"><polyline points="${xy}" fill="none" stroke="#86a5ff" stroke-width="2" vector-effect="non-scaling-stroke"/></svg>`;
 }
 
 function renderSectionCard() {
@@ -178,11 +210,14 @@ function renderSectionCard() {
   if (!section) return;
   section.querySelector('.live-card')?.remove();
   const id = $('#sideNav button.active')?.dataset.id;
-  const html = current && SECTIONS[id]?.(current);
+  // 거시지표는 기업과 무관하므로 수집 대상이 아닌 기업에서도 보여줍니다.
+  const d = current || (['industry', 'schedule'].includes(id) ? {} : null);
+  const html = d && SECTIONS[id]?.(d);
   if (!html) return;
+  const at = current?.updatedAt || macro?.updatedAt;
   const el = document.createElement('div');
   el.className = 'live-card';
-  el.innerHTML = `<div class="live-head"><span class="live-badge">공식 데이터</span><small>수집 ${esc(new Date(current.updatedAt).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' }))}</small></div>${html}`;
+  el.innerHTML = `<div class="live-head"><span class="live-badge">공식 데이터</span><small>${at ? `수집 ${esc(new Date(at).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' }))}` : ''}</small></div>${html}`;
   section.querySelector('h2').after(el);
 }
 
@@ -199,6 +234,9 @@ function forPrompt() {
   const div = dps(d.dividends);
   if (div) L.push(`- 보통주 주당배당금: FY${d.dividends.year} ${fmt(div.current)}원, FY${d.dividends.year - 1} ${fmt(div.previous)}원, FY${d.dividends.year - 2} ${fmt(div.twoYearsAgo)}원 [OpenDART]`);
   if (d.disclosures?.length) L.push('- 최근 공시: ' + d.disclosures.slice(0, 10).map(x => `${dateDot(x.date)} ${x.title}`).join('; '));
+  const mm = macroStats();
+  if (mm.fx) L.push(`- 원/달러 환율: ${mm.fx.value}원 (${periodDot(mm.fx.date)}, 1개월 ${signPct(mm.fx.m1)}) [한국은행 ECOS]`);
+  if (mm.br) L.push(`- 한국은행 기준금리: ${mm.br.value}% (${periodDot(mm.br.date)} 기준) [한국은행 ECOS]`);
   if (d.news?.length) L.push('- 최근 뉴스 제목: ' + d.news.slice(0, 6).map(n => `${(n.date || '').slice(0, 10)} ${n.title}`).join('; '));
   return L.join('\n').slice(0, 6000);
 }
@@ -220,8 +258,8 @@ let ready = Promise.resolve();
 window.StockLive = { get ready() { return ready; }, forPrompt, get data() { return current; } };
 
 async function init() {
-  const [m, stocks, t] = await Promise.all([getJSON('meta.json'), getJSON('stocks.json'), getJSON('trade.json')]);
-  meta = m; trade = t;
+  const [m, stocks, t, mc] = await Promise.all([getJSON('meta.json'), getJSON('stocks.json'), getJSON('trade.json'), getJSON('macro.json')]);
+  meta = m; trade = t; macro = mc;
   if (Array.isArray(stocks)) {
     window.StockIndex = stocks;
     const list = $('#stockList');

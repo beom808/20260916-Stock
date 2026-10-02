@@ -48,6 +48,13 @@ function fakeFetch(calls) {
       { basDt: '20251001', srtnCd: '005930', itmsNm: '삼성전자', clpr: '50000', trqu: '800' }] } } } });
     if (u.pathname.endsWith('/getItemInfo')) return json({ response: { header: { resultCode: '00' }, body: { items: p.basDt === '20261001' ? '' : { item: [{ srtnCd: 'A005930', itmsNm: '삼성전자', mrktCtg: 'KOSPI' }] } } } });
     if (u.pathname.endsWith('/getItemtradeList')) return { ok: true, text: async () => '<response><header><resultCode>00</resultCode></header><body><items><item><year>2026.07</year><hsCd>8542</hsCd><expDlr>12345</expDlr><impDlr>678</impDlr><balPayments>11667</balPayments></item><item><year>총계</year><expDlr>1</expDlr></item></items></body></response>' };
+    if (u.hostname === 'ecos.bok.or.kr') {
+      const [, , , key, , , , , stat, cycle] = u.pathname.split('/').map(decodeURIComponent);
+      if (key !== 'ECOS/KEY+1') return json({ RESULT: { CODE: 'INFO-100', MESSAGE: '인증키가 유효하지 않습니다.' } });
+      if (stat === '731Y001') return json({ RESULT: { CODE: 'INFO-200', MESSAGE: '해당하는 데이터가 없습니다.' } }); // 첫 후보 실패 → 대체 코드 사용
+      if (stat === '731Y003') return json({ StatisticSearch: { row: [{ TIME: '20261001', DATA_VALUE: '1395.5', UNIT_NAME: '원' }, { TIME: '20260901', DATA_VALUE: '1380', UNIT_NAME: '원' }] } });
+      if (stat === '722Y001' && cycle === 'M') return json({ StatisticSearch: { row: [{ TIME: '202608', DATA_VALUE: '2.5', UNIT_NAME: '연%' }, { TIME: '202609', DATA_VALUE: '2.25', UNIT_NAME: '연%' }] } });
+    }
     if (u.hostname === 'naverapihub.apigw.ntruss.com') return json({ items: [{ title: '<b>삼성전자</b> &quot;실적&quot;', description: '요약', originallink: 'https://news.example/a', pubDate: 'Wed, 30 Sep 2026 09:00:00 +0900' }] });
     throw new Error('unexpected ' + url);
   };
@@ -85,7 +92,7 @@ test('밸류에이션은 지배주주 순이익·자본 기준으로 계산한�
 
 test('전체 수집: 파일 생성, 키는 헤더/요청에만 쓰고 결과에는 남기지 않는다', async () => {
   const calls = [];
-  const env = { DART_API_KEY: 'DARTSECRET', DATA_GO_KR_KEY: 'GOSECRET', NAVER_API_KEY_ID: 'NID', NAVER_API_KEY_SECRET: 'NSECRET' };
+  const env = { DART_API_KEY: 'DARTSECRET', DATA_GO_KR_KEY: 'GOSECRET', NAVER_API_KEY_ID: 'NID1', NAVER_API_KEY_SECRET: 'NSECRET', ECOS_API_KEY: 'ECOS/KEY+1' };
   const out = await mkdtemp(path.join(tmpdir(), 'collect-'));
   const meta = await run({ outDir: out, env, api: createClient({ env, fetchImpl: fakeFetch(calls), delay: 0 }), now: new Date('2026-10-02T06:00:00Z'), companies: [{ code: '005930', name: '삼성전자' }] });
   assert.deepEqual(meta.errors, []);
@@ -106,9 +113,24 @@ test('전체 수집: 파일 생성, 키는 헤더/요청에만 쓰고 결과에�
   const trade = JSON.parse(await readFile(path.join(out, 'trade.json'), 'utf8'));
   assert.deepEqual(trade.months, [{ month: '2026.07', exports: 12345, imports: 678, balance: 11667 }]);
   const news = calls.find(c => c.url.includes('naverapihub'));
-  assert.equal(news.headers['X-NCP-APIGW-API-KEY-ID'], 'NID');
+  assert.equal(news.headers['X-NCP-APIGW-API-KEY-ID'], 'NID1');
+  const macro = JSON.parse(await readFile(path.join(out, 'macro.json'), 'utf8'));
+  assert.equal(macro.usdkrw.stat, '731Y003');
+  assert.deepEqual(macro.usdkrw.rows, [['20260901', 1380], ['20261001', 1395.5]]);
+  assert.deepEqual(macro.baseRate.rows.at(-1), ['202609', 2.25]);
+  assert.equal(meta.sources.ecos, 'ok');
   const all = JSON.stringify(d) + JSON.stringify(meta) + JSON.stringify(stocks);
   for (const s of Object.values(env)) assert.ok(!all.includes(s), '결과 파일에 키가 남으면 안 됨');
+});
+
+test('ECOS 인증 오류 메시지에 경로 속 키가 남지 않는다', async () => {
+  const env = { ECOS_API_KEY: 'WRONGKEY99' };
+  const out = await mkdtemp(path.join(tmpdir(), 'collect-'));
+  const fetchImpl = async url => ({ ok: false, status: 500, json: async () => ({}) });
+  const meta = await run({ outDir: out, env, api: createClient({ env, fetchImpl, delay: 0 }), now: new Date('2026-10-02T06:00:00Z'), companies: [] });
+  assert.equal(meta.sources.ecos, 'error');
+  assert.ok(meta.errors.some(e => e.includes('HTTP 500')));
+  assert.ok(!JSON.stringify(meta).includes('WRONGKEY99'));
 });
 
 test('출처 오류는 기록하되 키는 가린다', async () => {

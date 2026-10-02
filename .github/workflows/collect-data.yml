@@ -1,4 +1,4 @@
-# 공식 데이터 수집: 평일마다 OpenDART·공공데이터포털·NAVER API HUB에서 데이터를 받아
+# 공식 데이터 수집: 평일마다 OpenDART·공공데이터포털·NAVER API HUB·한국은행 ECOS에서 데이터를 받아
 # data 브랜치에 JSON으로 올립니다. main에 커밋하지 않으므로 Netlify 배포(크레딧)가 발생하지 않습니다.
 name: 데이터 수집
 
@@ -28,6 +28,7 @@ jobs:
           DATA_GO_KR_KEY: ${{ secrets.DATA_GO_KR_KEY }}
           NAVER_API_KEY_ID: ${{ secrets.NAVER_API_KEY_ID }}
           NAVER_API_KEY_SECRET: ${{ secrets.NAVER_API_KEY_SECRET }}
+          ECOS_API_KEY: ${{ secrets.ECOS_API_KEY }}
         run: node scripts/collect-data.mjs out
 
       - name: data 브랜치에 게시

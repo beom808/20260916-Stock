@@ -95,6 +95,7 @@ Cloud Storage와 Cloud Functions는 사용하지 않습니다.
 | OpenDART | `DART_API_KEY` | 기업개황, 5개년 재무, 최근 분기, 배당, 최근 공시, 종목 고유번호 |
 | 공공데이터포털 | `DATA_GO_KR_KEY` (Decoding 키) | 주가·시가총액(금융위원회_주식시세정보), 검색용 종목 목록(KRX상장종목정보), 반도체 수출입(관세청) |
 | NAVER API HUB | `NAVER_API_KEY_ID`, `NAVER_API_KEY_SECRET` | 최근 뉴스 |
+| 한국은행 ECOS | `ECOS_API_KEY` | 원/달러 환율(일별), 한국은행 기준금리 |
 
 - **왜 data 브랜치인가**: Netlify 무료 플랜은 `main` 배포 1회에 15크레딧(월 300크레딧)을 쓰고, 다 쓰면 사이트가 멈춥니다.
   매일 데이터를 `main`에 커밋하면 크레딧을 넘기므로 별도 브랜치에 올립니다.
