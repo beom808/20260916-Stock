@@ -188,3 +188,4 @@ aside nav button.active span{color:var(--blue-text)}
 .live-spark{display:block;width:100%;height:120px;background:#0b1426;border:1px solid #1f2f52;border-radius:6px;margin-bottom:10px}
 .live-empty{margin:0;color:#8896b0;font-size:11px;text-align:center;width:100%}
 @media print{.live-card{background:#fff;color:#000;border:1px solid #ccc}.live-list a{color:#000}}
+.live-stale{margin:0 0 10px;padding:7px 10px;border-radius:5px;background:#3a2f0a;color:#f2c94c;font-size:11px}
