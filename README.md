@@ -83,3 +83,23 @@ Cloud Storage와 Cloud Functions는 사용하지 않습니다.
 - 결과는 기업·항목별로 이 브라우저에 24시간 저장되어, 같은 메뉴를 다시 열면 API를 다시 호출하지 않습니다.
   **다시 분석** 버튼으로 새로 생성할 수 있습니다.
 - 메뉴를 빠르게 옮기면 이전 분석 요청은 취소됩니다. 무료 키의 호출 한도를 아끼기 위해서입니다.
+
+## 공식 데이터 수집 (GitHub Actions)
+
+`.github/workflows/collect-data.yml`이 평일 14:40(KST)마다 `scripts/collect-data.mjs`를 실행해
+아래 출처의 데이터를 JSON으로 만들고 **`data` 브랜치**에 올립니다. 사이트(`public/live-data.js`)는
+`https://raw.githubusercontent.com/beom808/20260916-Stock/data/` 에서 이 파일을 읽어 화면에 반영합니다.
+
+| 출처 | GitHub Secret | 사용처 |
+| --- | --- | --- |
+| OpenDART | `DART_API_KEY` | 기업개황, 5개년 재무, 최근 분기, 배당, 최근 공시, 종목 고유번호 |
+| 공공데이터포털 | `DATA_GO_KR_KEY` (Decoding 키) | 주가·시가총액(금융위원회_주식시세정보), 검색용 종목 목록(KRX상장종목정보), 반도체 수출입(관세청) |
+| NAVER API HUB | `NAVER_API_KEY_ID`, `NAVER_API_KEY_SECRET` | 최근 뉴스 |
+
+- **왜 data 브랜치인가**: Netlify 무료 플랜은 `main` 배포 1회에 15크레딧(월 300크레딧)을 쓰고, 다 쓰면 사이트가 멈춥니다.
+  매일 데이터를 `main`에 커밋하면 크레딧을 넘기므로 별도 브랜치에 올립니다.
+- **수집 대상 기업**: `scripts/companies.json`에 종목코드와 이름을 추가하면 다음 실행부터 수집합니다.
+  목록에 없는 기업은 검색은 되지만 재무·시세는 `확인 불가`로 표시합니다.
+- **수동 실행**: GitHub 저장소 → Actions → 데이터 수집 → Run workflow.
+- **오류 확인**: 실행 로그 또는 `data` 브랜치의 `meta.json`(`errors`)에 출처별 오류가 남습니다. 키 값은 기록하지 않습니다.
+- 수집된 공식 데이터는 AI 채팅·메뉴별 AI 분석의 프롬프트에도 출처·기준일과 함께 들어갑니다.

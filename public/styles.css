@@ -169,3 +169,22 @@ aside nav button.active span{color:var(--blue-text)}
 .ai-table th{background:#172a55;color:#dbe4ff;white-space:nowrap}
 .ai-msg .ai-table table{font-size:11px}
 @media print{.ai-section{border:1px solid #ccc;background:#fff;color:#000}.ai-section-head button{display:none}.ai-section-body,.ai-section-body h4{color:#000}.ai-table th{background:#eee;color:#000}.ai-table th,.ai-table td{border-color:#ccc}}
+
+/* 공식 데이터 카드 (OpenDART·공공데이터포털·네이버 뉴스) */
+.not-samsung .samsung-only{display:none}
+.live-card{margin:4px 0 16px;background:#0f1d36;border:1px solid #24407a;border-left:3px solid #2eaf84;border-radius:8px;padding:16px 22px;font-size:12.5px;line-height:1.7;color:#e6ebf5}
+.live-head{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.live-badge{font-size:11px;font-weight:800;color:#5fe0b3;background:#0f3a30;border-radius:4px;padding:4px 8px}
+.live-head small{font-size:10px;color:#93a1ba}
+.live-cap{margin:4px 0 6px;color:#a3b0c7;font-size:11.5px}
+.live-src{margin:6px 0 0;color:#8896b0;font-size:10.5px}
+.live-sub{margin:14px 0 6px;font-size:13px;color:#fff}
+.live-list{list-style:none;margin:0;padding:0}
+.live-list li{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid #1f2f52}
+.live-list li:last-child{border:0}
+.live-list a{color:#c7d6ff;text-decoration:none;overflow-wrap:anywhere}
+.live-list a:hover{text-decoration:underline}
+.live-list small{flex:none;color:#8896b0;font-size:10.5px}
+.live-spark{display:block;width:100%;height:120px;background:#0b1426;border:1px solid #1f2f52;border-radius:6px;margin-bottom:10px}
+.live-empty{margin:0;color:#8896b0;font-size:11px;text-align:center;width:100%}
+@media print{.live-card{background:#fff;color:#000;border:1px solid #ccc}.live-list a{color:#000}}

@@ -1,0 +1,43 @@
+# 공식 데이터 수집: 평일마다 OpenDART·공공데이터포털·NAVER API HUB에서 데이터를 받아
+# data 브랜치에 JSON으로 올립니다. main에 커밋하지 않으므로 Netlify 배포(크레딧)가 발생하지 않습니다.
+name: 데이터 수집
+
+on:
+  schedule:
+    # 평일 14:40 KST (공공데이터포털 주식시세는 다음 영업일 13시 이후 갱신)
+    - cron: '40 5 * * 1-5'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: collect-data
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 데이터 수집
+        env:
+          DART_API_KEY: ${{ secrets.DART_API_KEY }}
+          DATA_GO_KR_KEY: ${{ secrets.DATA_GO_KR_KEY }}
+          NAVER_API_KEY_ID: ${{ secrets.NAVER_API_KEY_ID }}
+          NAVER_API_KEY_SECRET: ${{ secrets.NAVER_API_KEY_SECRET }}
+        run: node scripts/collect-data.mjs out
+
+      - name: data 브랜치에 게시
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd out
+          git init -q -b data
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "데이터 갱신 $(date -u +%Y-%m-%dT%H:%MZ) [skip netlify]"
+          git push -q -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" data
