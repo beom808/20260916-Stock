@@ -219,3 +219,11 @@ test('companies.json의 고유번호를 쓰고, 다른 회사를 가리키면 �
   assert.ok(!bad.annual?.length, '잘못된 고유번호로 받은 재무는 없어야 함');
   assert.ok(meta.errors.some(e => e.includes('000660') && e.includes('가리킵니다')));
 });
+
+test('종목 목록을 못 받아도 수집 대상 기업은 검색 목록에 들어간다', async () => {
+  const out = await mkdtemp(path.join(tmpdir(), 'collect-'));
+  await run({ outDir: out, env: {}, api: createClient({ env: {}, fetchImpl: async () => { throw new Error('x'); }, delay: 0, retries: 0 }), now: new Date('2026-10-02T06:00:00Z'),
+    companies: [{ code: '005930', name: '삼성전자', corp: '00126380' }, { code: '000660', name: 'SK하이닉스', corp: '00164779' }] });
+  const stocks = JSON.parse(await readFile(path.join(out, 'stocks.json'), 'utf8'));
+  assert.deepEqual(stocks.map(s => [s.c, s.d]), [['005930', 1], ['000660', 1]]);
+});

@@ -232,7 +232,8 @@ export function valuation(price, annual, dividends) {
   const dps = dividends?.rows?.find(r => /주당\s*현금배당금/.test(r.item) && /보통/.test(r.kind || '보통'));
   if (price?.close && dps?.current > 0) v.dividendYield = dps.current / price.close * 100;
   const d = price?.basDt || '';
-  v.basis = `주가 ${d ? `${d.slice(0, 4)}.${d.slice(4, 6)}.${d.slice(6)}` : '-'} 종가·보통주 시가총액, 실적 FY${last.year}(지배주주 기준)`;
+  v.basis = d ? `주가 ${d.slice(0, 4)}.${d.slice(4, 6)}.${d.slice(6)} 종가·보통주 시가총액, 실적 FY${last.year}(지배주주 기준)`
+    : `실적 FY${last.year}(지배주주 기준). 주가를 수집하지 못해 PER·PBR·배당수익률은 계산하지 않았습니다`;
   return v;
 }
 
@@ -419,6 +420,8 @@ export async function run({ outDir, env = process.env, api = createClient({ env 
 
   if (!stocks.length) stocks = corpList.map(c => ({ code: c.code, name: c.name }));
   if (!stocks.length) stocks = (prevStocks || []).map(s => ({ code: s.c, name: s.n, market: s.m }));
+  // 수집 대상 기업은 종목 목록을 못 받아도 항상 검색되도록 넣습니다.
+  for (const c of companies) if (!stocks.some(x => x.code === c.code)) stocks.push({ code: c.code, name: c.name });
   const collected = new Set(companies.map(c => c.code));
   await writeFile(path.join(outDir, 'stocks.json'), JSON.stringify(stocks.map(s => ({ c: s.code, n: s.name, m: s.market || '', d: collected.has(s.code) ? 1 : 0 }))));
 

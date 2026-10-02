@@ -3,7 +3,8 @@
 const BASE = 'https://raw.githubusercontent.com/beom808/20260916-Stock/data/';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const safeUrl = u => (/^https:\/\//.test(u || '') ? esc(u) : '');
+// 외부 링크는 http(s)만 허용합니다(javascript: 등 차단). 뉴스 원문 일부는 http 주소입니다.
+const safeUrl = u => (/^https?:\/\/[^\s"'<>]+$/i.test(u || '') ? esc(u) : '');
 
 const cache = new Map();
 let meta = null;
