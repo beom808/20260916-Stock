@@ -12,22 +12,22 @@
   <header class="topbar"><a class="brand" href="#"><span class="brand-icon">S</span><span>STOCK <b>PULSE</b></span></a><nav><a class="active">기업 리서치</a><a>산업 리포트</a><a>관심 기업</a></nav><button class="help">?</button><button class="watch-btn" id="watchBtn" hidden>★ 관심 기업 <b id="watchCount">0</b></button><button class="login" id="loginBtn">Google로 로그인</button><div class="user-chip" id="userChip" hidden><img id="userPhoto" alt="" referrerpolicy="no-referrer" hidden><span id="userName"></span><button id="logoutBtn">로그아웃</button></div></header>
   <section class="search-hero">
     <p>데이터 기반 기업 리서치</p><h1>기업의 숫자 너머,<br><em>투자의 맥락</em>을 읽다.</h1>
-    <div class="search-wrap"><span>⌕</span><input id="companyInput" value="삼성전자" placeholder="기업명 또는 6자리 종목코드를 입력하세요"><button id="searchBtn">분석하기 <b>→</b></button></div>
+    <div class="search-wrap"><span>⌕</span><input id="companyInput" list="stockList" autocomplete="off" value="삼성전자" placeholder="기업명 또는 6자리 종목코드를 입력하세요"><button id="searchBtn">분석하기 <b>→</b></button></div>
     <div class="quick"><span>빠른 검색</span><button data-query="삼성전자">삼성전자</button><button data-query="SK하이닉스">SK하이닉스</button><button data-query="현대차">현대차</button><button data-query="NAVER">NAVER</button></div>
   </section>
   <div class="loading" id="loading" hidden><i></i><b>최신 공시와 IR 자료를 확인하고 있습니다</b><span>기업의 사업 구조에 맞는 분석 항목을 구성합니다.</span></div>
   <main id="report">
-    <section class="company-head"><div class="company-title"><span class="company-logo">삼성</span><div><p><span class="market">KOSPI</span> <span id="code">005930</span></p><h2 id="companyName">삼성전자</h2><small>조사 기준일 <b id="asOf">2026. 09. 16</b> · 최신 재무 데이터 <b>2025. 12 (연결)</b></small></div><button class="fav-btn" id="favBtn" aria-pressed="false">☆ 관심 기업 추가</button></div><div class="quote"><small>현재가 <span>2026.09.15 종가</span></small><strong id="price">102,400원</strong><em>▲ 1,200&nbsp; +1.19%</em></div><div class="marketcap"><small>시가총액</small><strong>611.3조원</strong><span>코스피 1위</span></div></section>
+    <section class="company-head"><div class="company-title"><span class="company-logo" id="companyLogo">삼성</span><div><p><span class="market" id="market">KOSPI</span> <span id="code">005930</span></p><h2 id="companyName">삼성전자</h2><small>조사 기준일 <b id="asOf">2026. 09. 16</b> · 최신 재무 데이터 <b id="finBasis">2025. 12 (연결)</b></small></div><button class="fav-btn" id="favBtn" aria-pressed="false">☆ 관심 기업 추가</button></div><div class="quote"><small>현재가 <span id="quoteDate">2026.09.15 종가</span></small><strong id="price">102,400원</strong><em id="priceChange">▲ 1,200&nbsp; +1.19%</em></div><div class="marketcap"><small>시가총액</small><strong id="marketCap">611.3조원</strong><span id="marketCapNote">코스피 1위</span></div></section>
     <section class="workspace">
-      <aside><p>기업 분석 보고서</p><nav id="sideNav"></nav><div class="update-card"><span>✓</span><b>데이터 업데이트</b><small>공시·IR·시장 데이터<br>2026.09.16 확인</small></div></aside>
+      <aside><p>기업 분석 보고서</p><nav id="sideNav"></nav><div class="update-card"><span>✓</span><b>데이터 업데이트</b><small id="updateNote">공시·IR·시장 데이터<br>2026.09.16 확인</small></div></aside>
       <article class="content">
         <div class="report-meta"><span class="live">● 최신 자료 반영</span><span>연결재무제표 기준</span><button id="printBtn">⇩ 보고서 저장</button></div>
         <section id="summary" class="report-section active">
-          <div class="section-label">01 · 핵심 요약</div><h2>핵심 요약</h2><p class="lead">메모리 업황 회복과 AI 수요가 이끄는 실적 반등,<br>다만 <b>HBM 경쟁력 회복 속도</b>가 재평가의 핵심입니다.</p>
-          <div class="thesis-grid"><div class="positive"><span>↗</span><small>핵심 성장 동력</small><b>AI 서버용 고부가 메모리</b><p>HBM·DDR5 중심의 제품 믹스 개선과 메모리 가격 회복이 수익성 개선을 견인합니다.</p></div><div class="risk"><span>!</span><small>가장 중요한 위험</small><b>파운드리 수율 및 적자 지속</b><p>선단공정 수율 개선 지연은 고정비 부담과 비메모리 경쟁력 약화로 연결됩니다.</p></div></div>
+          <div class="section-label">01 · 핵심 요약</div><h2>핵심 요약</h2><p class="lead samsung-only">메모리 업황 회복과 AI 수요가 이끄는 실적 반등,<br>다만 <b>HBM 경쟁력 회복 속도</b>가 재평가의 핵심입니다.</p>
+          <div class="thesis-grid samsung-only"><div class="positive"><span>↗</span><small>핵심 성장 동력</small><b>AI 서버용 고부가 메모리</b><p>HBM·DDR5 중심의 제품 믹스 개선과 메모리 가격 회복이 수익성 개선을 견인합니다.</p></div><div class="risk"><span>!</span><small>가장 중요한 위험</small><b>파운드리 수율 및 적자 지속</b><p>선단공정 수율 개선 지연은 고정비 부담과 비메모리 경쟁력 약화로 연결됩니다.</p></div></div>
           <div class="metric-title"><h3>핵심 투자지표</h3><span>단위: 조원, %, 배</span></div><div class="metrics" id="metrics"></div>
-          <div class="chart-panel"><div><small>5개년 실적 추이</small><h3>매출액 및 영업이익</h3></div><div class="legend"><i></i> 매출액 <i></i> 영업이익</div><div class="bars" id="bars"></div></div>
-          <div class="watch"><span>◎</span><div><small>다음 핵심 관찰 지표</small><h3>앞으로 가장 먼저 확인할 지표</h3><p><b>HBM 출하 증가율과 메모리 ASP</b> — 분기 실적보다 먼저 제품 믹스와 이익 방향을 보여주는 선행 지표입니다.</p></div><button data-section="schedule">관찰 지표 보기 →</button></div>
+          <div class="chart-panel"><div><small id="chartNote">5개년 실적 추이</small><h3>매출액 및 영업이익</h3></div><div class="legend"><i></i> 매출액 <i></i> 영업이익</div><div class="bars" id="bars"></div></div>
+          <div class="watch samsung-only"><span>◎</span><div><small>다음 핵심 관찰 지표</small><h3>앞으로 가장 먼저 확인할 지표</h3><p><b>HBM 출하 증가율과 메모리 ASP</b> — 분기 실적보다 먼저 제품 믹스와 이익 방향을 보여주는 선행 지표입니다.</p></div><button data-section="schedule">관찰 지표 보기 →</button></div>
         </section>
         <section id="generic" class="report-section"></section>
         <section class="memo-card" id="memoCard"><h3 id="memoTitle">내 메모</h3><div id="memoLogin"><p>로그인하면 기업별 메모를 저장하고 어디서든 볼 수 있습니다.</p><button id="memoLoginBtn">Google로 로그인</button></div><div id="memoForm" hidden><textarea id="memoText" maxlength="5000" rows="5" placeholder="이 기업에 대한 생각, 확인할 공시, 매수·매도 기준 등을 적어 두세요."></textarea><div class="memo-actions"><span id="memoStatus" role="status"></span><button id="saveMemoBtn">메모 저장</button></div></div></section>
@@ -52,7 +52,9 @@
     <label class="ai-check ai-search"><input type="checkbox" id="aiSearch"> Google 검색으로 최신 정보 확인 (채팅·메뉴 분석 공통)</label>
   </section>
   <div id="toast" class="toast"></div>
+  <datalist id="stockList"></datalist>
   <script src="/app.js"></script>
+  <script type="module" src="/live-data.js"></script>
   <script type="module" src="/firebase.js"></script>
   <script type="module" src="/ai-chat.js"></script>
   <script type="module" src="/ai-sections.js"></script>

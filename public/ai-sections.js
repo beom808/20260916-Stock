@@ -50,7 +50,7 @@ function card() {
     el = document.createElement('div');
     el.className = 'ai-section';
     el.innerHTML = '<div class="ai-section-head"><span class="ai-section-badge">✦ AI 분석</span><small class="ai-section-meta"></small><button class="ai-section-regen" type="button" hidden>다시 분석</button><button class="ai-section-stop" type="button" hidden>중지</button></div><div class="ai-section-body"></div>';
-    section.querySelector('h2').after(el);
+    (section.querySelector('.live-card') || section.querySelector('h2')).after(el);
     el.querySelector('.ai-section-regen').addEventListener('click', () => run(currentId, true));
     el.querySelector('.ai-section-stop').addEventListener('click', () => controller?.abort());
   }

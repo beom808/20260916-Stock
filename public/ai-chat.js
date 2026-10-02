@@ -119,8 +119,9 @@ searchBox.addEventListener('change', () => store.set(SEARCH_PREF, searchBox.chec
 function systemPrompt(useSearch) {
   const c = currentCompany();
   const today = new Date().toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul', year: 'numeric', month: 'long', day: 'numeric' });
-  // 삼성전자 외 기업은 화면 수치가 데모(삼성전자 값)이므로 넘기지 않습니다.
-  const pageData = c.code ? collectPageData() : '';
+  // 수집된 공식 데이터가 있으면 그것을 넘기고, 없을 때만 삼성전자 프로토타입 화면값을 '미검증'으로 넘깁니다.
+  const live = window.StockLive?.forPrompt?.() || '';
+  const pageData = !live && c.code === '005930' ? collectPageData() : '';
   return [
     '너는 한국 상장기업을 분석하는 리서치 애널리스트다. 사용자는 STOCK PULSE 사이트에서 아래 기업을 보고 있다.',
     `분석 대상: ${c.name}${c.code ? ` (종목코드 ${c.code})` : ' (종목코드 미확인)'}`,
@@ -135,6 +136,7 @@ function systemPrompt(useSearch) {
     '6. 한국어로, 핵심 결론을 먼저 쓰고 근거를 짧은 목록으로 정리한다. 불필요하게 길게 쓰지 않는다.',
     useSearch ? '7. Google 검색으로 최신 자료를 확인한 뒤 답한다.'
       : '7. 지금은 검색을 쓸 수 없다. 학습 데이터 이후의 최신 실적·주가·공시는 모른다고 밝히고, 알고 있는 정보는 어느 시점 기준인지 함께 쓴다.',
+    live ? `\n공식 데이터 (OpenDART·공공데이터포털·네이버 뉴스에서 수집. 사실로 인용할 수 있으며, 인용할 때는 출처와 기준일을 함께 쓸 것. 검색 결과와 다르면 차이를 밝힐 것):\n${live}` : '',
     pageData ? `\n참고: 사이트 화면에 표시된 값(프로토타입이라 검증되지 않았으며 틀릴 수 있음. 사실로 인용하지 말고 필요하면 검증이 필요하다고 말할 것):\n${pageData}` : ''
   ].join('\n');
 }
@@ -150,6 +152,7 @@ function collectPageData() {
 export async function streamGemini({ contents, task = '', signal, onText = () => {} }) {
   const key = store.get(KEY_NAME);
   if (!key) throw Object.assign(new Error('Gemini API 키가 없습니다.'), { code: 'NO_KEY' });
+  try { await window.StockLive?.ready; } catch {} // 공식 데이터를 프롬프트에 넣기 위해 로딩을 기다립니다.
   const useSearch = searchBox.checked;
   const call = search => fetch(ENDPOINT, {
     method: 'POST',
