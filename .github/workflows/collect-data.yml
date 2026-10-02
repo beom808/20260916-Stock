@@ -22,6 +22,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: 접속 진단(임시)
+        run: node scripts/net-check.mjs
+
       - name: 데이터 수집
         env:
           DART_API_KEY: ${{ secrets.DART_API_KEY }}
