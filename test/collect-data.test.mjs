@@ -196,3 +196,26 @@ test('실패한 항목은 이전 수집분을 유지하고 stale로 표시한다
   assert.equal(macro.usdkrw.stale, '2026-10-01T05:40:00Z');
   assert.ok(meta.errors.length > 0);
 });
+
+test('companies.json의 고유번호를 쓰고, 다른 회사를 가리키면 그 기업의 OpenDART 수집을 멈춘다', async () => {
+  const env = { DART_API_KEY: 'DARTSECRET' };
+  const calls = [];
+  const base = fakeFetch(calls);
+  const fetchImpl = async (url, opts) => {
+    if (url.includes('company.json') && url.includes('00000001')) return { ok: true, json: async () => ({ status: '000', corp_name: '다른회사', stock_code: '111111' }) };
+    if (url.includes('company.json')) return { ok: true, json: async () => ({ status: '000', corp_name: '삼성전자', stock_code: '005930', corp_cls: 'Y' }) };
+    return base(url, opts);
+  };
+  const out = await mkdtemp(path.join(tmpdir(), 'collect-'));
+  const prev = await mkdtemp(path.join(tmpdir(), 'prev-'));
+  await writeFile(path.join(prev, 'stocks.json'), JSON.stringify([{ c: '005930', n: '삼성전자', m: 'KOSPI', d: 1 }]));
+  const meta = await run({ outDir: out, prevDir: prev, env, api: createClient({ env, fetchImpl, delay: 0, retries: 0 }), now: new Date('2026-10-02T06:00:00Z'),
+    companies: [{ code: '005930', name: '삼성전자', corp: '00126380' }, { code: '000660', name: 'SK하이닉스', corp: '00000001' }] });
+  assert.ok(!calls.some(c => c.url.includes('corpCode.xml')), '고유번호가 모두 있으면 전체 목록을 받지 않음');
+  const ok = JSON.parse(await readFile(path.join(out, '005930.json'), 'utf8'));
+  assert.equal(ok.annual.length, 5);
+  const bad = JSON.parse(await readFile(path.join(out, '000660.json'), 'utf8'));
+  assert.equal(bad.corpCode, undefined);
+  assert.ok(!bad.annual?.length, '잘못된 고유번호로 받은 재무는 없어야 함');
+  assert.ok(meta.errors.some(e => e.includes('000660') && e.includes('가리킵니다')));
+});

@@ -76,7 +76,7 @@ export function createClient({ env = process.env, fetchImpl = fetch, delay = 120
   async function corpCodes() {
     const q = new URLSearchParams({ crtfc_key: env.DART_API_KEY });
     // 전체 회사 목록 ZIP(수 MB)이라 시간 제한을 넉넉히 둡니다.
-    const buf = Buffer.from(await get(`${DART}/corpCode.xml?${q}`, {}, r => r.arrayBuffer(), { timeout: 120000 }));
+    const buf = Buffer.from(await get(`${DART}/corpCode.xml?${q}`, {}, r => r.arrayBuffer(), { timeout: 90000, tries: 1 }));
     if (buf.readUInt32LE(0) !== 0x04034b50) throw new Error('OpenDART corpCode: ZIP이 아닌 응답 ' + hideSecrets(buf.toString('utf8', 0, 200)));
     return parseCorpCodes(unzipFirst(buf).toString('utf8'));
   }
@@ -249,11 +249,15 @@ export async function collectCompany(api, env, { code, name }, corpMap, now, log
 
   if (env.DART_API_KEY && corp) {
     out.corpCode = corp.corp;
+    const before = errors.length;
     out.profile = await tryIt('기업개황', async () => {
       const p = await api.dart('company', { corp_code: corp.corp });
+      // 고유번호가 다른 회사를 가리키면 그 기업의 OpenDART 수집을 멈춥니다.
+      if (p && p.stock_code && p.stock_code.trim() !== code) throw Object.assign(new Error(`고유번호 ${corp.corp}가 ${p.corp_name}(${p.stock_code})를 가리킵니다. companies.json을 확인하세요.`), { mismatch: true });
       return p && { name: p.corp_name, nameEng: p.corp_name_eng, ceo: p.ceo_nm, market: { Y: '유가증권시장(KOSPI)', K: '코스닥(KOSDAQ)', N: '코넥스', E: '기타' }[p.corp_cls] || p.corp_cls, address: p.adres, homepage: p.hm_url, irUrl: p.ir_url, phone: p.phn_no, industryCode: p.induty_code, established: p.est_dt, fiscalMonth: p.acc_mt };
     });
 
+    if (errors.length > before && /가리킵니다/.test(errors.at(-1))) { delete out.corpCode; return finish(); }
     // 연간 재무: 최신 사업연도부터 2년 간격으로 3번 조회해 5개년을 채웁니다.
     out.annual = await tryIt('연간 재무', async () => {
       let latest = now.getUTCFullYear() - 1;
@@ -294,7 +298,9 @@ export async function collectCompany(api, env, { code, name }, corpMap, now, log
   } else if (env.DART_API_KEY) {
     errors.push(`${code} OpenDART: 고유번호를 찾지 못했습니다.`);
   }
+  return finish();
 
+  async function finish() {
   if (env.DATA_GO_KR_KEY) {
     out.price = await tryIt('주식시세', async () => {
       const { items } = await api.dataGo(PRICE, { likeSrtnCd: code, beginBasDt: ymd(daysAgo(400, now)), numOfRows: '400', pageNo: '1' });
@@ -308,6 +314,7 @@ export async function collectCompany(api, env, { code, name }, corpMap, now, log
 
   out.valuation = valuation(out.price, out.annual || [], out.dividends);
   return { data: out, errors };
+  }
 }
 
 async function fin(api, corp, year, reprt) {
@@ -388,25 +395,30 @@ export async function run({ outDir, env = process.env, api = createClient({ env 
   const sources = {};
   await mkdir(outDir, { recursive: true });
 
-  let corpList = [];
-  if (env.DART_API_KEY) {
-    log('OpenDART 고유번호 목록…');
-    try { corpList = await api.corpCodes(); sources.dart = 'ok'; log(`  ${corpList.length}개 상장사`); } catch (e) { errors.push('OpenDART 고유번호: ' + maskSecrets(e.message, env)); sources.dart = 'error'; }
-  } else sources.dart = 'no-key';
-  const corpMap = new Map(corpList.map(c => [c.code, c]));
-  // 고유번호 목록을 못 받으면 지난번에 저장한 수집 대상 기업의 고유번호를 씁니다(고유번호는 바뀌지 않음).
-  const prevCorp = await readPrev(prevDir, 'corpcodes.json');
-  for (const c of prevCorp || []) if (!corpMap.has(c.code)) corpMap.set(c.code, c);
-  await writeFile(path.join(outDir, 'corpcodes.json'), JSON.stringify(companies.map(c => corpMap.get(c.code)).filter(Boolean)));
-
-  // 검색용 종목 목록: KRX 상장종목(시장 구분 포함)을 우선 사용하고, 실패하면 DART 목록을 씁니다.
+  // 검색용 종목 목록: KRX 상장종목(시장 구분 포함)을 우선 사용합니다.
   let stocks = [];
   if (env.DATA_GO_KR_KEY) {
     log('KRX 상장종목 목록…');
     try { stocks = await listedStocks(api, now); log(`  ${stocks.length}개 종목`); sources.krxListed = stocks.length ? 'ok' : 'empty'; } catch (e) { errors.push('KRX상장종목: ' + maskSecrets(e.message, env)); sources.krxListed = 'error'; }
   } else sources.krxListed = 'no-key';
+  const prevStocks = await readPrev(prevDir, 'stocks.json');
+
+  // OpenDART 고유번호: companies.json과 이전 수집분을 먼저 쓰고, 전체 목록(수 MB ZIP)은
+  // 고유번호가 없는 기업이 있거나 검색용 목록이 전혀 없을 때만 받습니다.
+  const corpMap = new Map();
+  for (const c of (await readPrev(prevDir, 'corpcodes.json')) || []) corpMap.set(c.code, c);
+  for (const c of companies) if (c.corp) corpMap.set(c.code, { corp: c.corp, name: c.name, code: c.code });
+  let corpList = [];
+  const needList = companies.some(c => !corpMap.has(c.code)) || (!stocks.length && !prevStocks?.length);
+  if (env.DART_API_KEY && needList) {
+    log('OpenDART 고유번호 목록…');
+    try { corpList = await api.corpCodes(); sources.dart = 'ok'; log(`  ${corpList.length}개 상장사`); } catch (e) { errors.push('OpenDART 고유번호 목록: ' + maskSecrets(e.message, env)); sources.dart = 'error'; }
+    for (const c of corpList) if (!corpMap.has(c.code) || companies.some(x => x.code === c.code && !x.corp)) corpMap.set(c.code, c);
+  } else sources.dart = env.DART_API_KEY ? 'ok' : 'no-key';
+  await writeFile(path.join(outDir, 'corpcodes.json'), JSON.stringify(companies.map(c => corpMap.get(c.code)).filter(Boolean)));
+
   if (!stocks.length) stocks = corpList.map(c => ({ code: c.code, name: c.name }));
-  if (!stocks.length) stocks = ((await readPrev(prevDir, 'stocks.json')) || []).map(s => ({ code: s.c, name: s.n, market: s.m }));
+  if (!stocks.length) stocks = (prevStocks || []).map(s => ({ code: s.c, name: s.n, market: s.m }));
   const collected = new Set(companies.map(c => c.code));
   await writeFile(path.join(outDir, 'stocks.json'), JSON.stringify(stocks.map(s => ({ c: s.code, n: s.name, m: s.market || '', d: collected.has(s.code) ? 1 : 0 }))));
 
@@ -441,7 +453,6 @@ export async function run({ outDir, env = process.env, api = createClient({ env 
   sources.naverNews = env.NAVER_API_KEY_ID && env.NAVER_API_KEY_SECRET ? 'used' : 'no-key';
 
   const meta = { updatedAt: now.toISOString(), companies: companies.map(c => c.code), sources, errors };
-  if (corpList.length === 0 && env.DART_API_KEY && prevCorp?.length) log('OpenDART 고유번호: 저장된 고유번호로 계속 진행');
   await writeFile(path.join(outDir, 'meta.json'), JSON.stringify(meta, null, 1));
   return meta;
 }
