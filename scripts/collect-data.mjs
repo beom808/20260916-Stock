@@ -50,7 +50,10 @@ export function createClient({ env = process.env, fetchImpl = fetch, delay = 120
       try {
         const res = await fetchImpl(url, { ...opts, signal: AbortSignal.timeout(timeout) });
         if (!res.ok) {
-          const err = new Error(`HTTP ${res.status} ${where}`);
+          // 원인 확인용으로 응답 본문 앞부분을 남깁니다(키는 가림).
+          let body = '';
+          try { body = stripTags(await res.text()).replace(/\s+/g, ' ').slice(0, 160); } catch {}
+          const err = new Error(maskSecrets(`HTTP ${res.status} ${where}${body ? ` — ${body}` : ''}`, env));
           if (res.status < 500) { err.final = true; throw err; }
           throw err;
         }
