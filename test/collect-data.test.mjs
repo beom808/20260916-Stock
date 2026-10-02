@@ -133,6 +133,16 @@ test('ECOS 인증 오류 메시지에 경로 속 키가 남지 않는다', async
   assert.ok(!JSON.stringify(meta).includes('WRONGKEY99'));
 });
 
+test('응답이 없는 API는 시간 초과로 끊고 다음 단계로 넘어간다', async () => {
+  const env = { ECOS_API_KEY: 'SLOWKEY123' };
+  const out = await mkdtemp(path.join(tmpdir(), 'collect-'));
+  // 실제 소켓처럼 이벤트 루프를 붙잡아 두고, 시간 제한 신호가 오면 끊습니다.
+  const hang = (url, opts) => new Promise((_, reject) => { const keep = setTimeout(() => {}, 10000); opts.signal.addEventListener('abort', () => { clearTimeout(keep); reject(opts.signal.reason); }); });
+  const meta = await run({ outDir: out, env, api: createClient({ env, fetchImpl: hang, delay: 0, timeoutMs: 50 }), now: new Date('2026-10-02T06:00:00Z'), companies: [] });
+  assert.ok(meta.errors.some(e => e.includes('시간 초과')));
+  assert.ok(!JSON.stringify(meta).includes('SLOWKEY123'));
+});
+
 test('출처 오류는 기록하되 키는 가린다', async () => {
   const env = { DART_API_KEY: 'DARTSECRET' };
   const out = await mkdtemp(path.join(tmpdir(), 'collect-'));

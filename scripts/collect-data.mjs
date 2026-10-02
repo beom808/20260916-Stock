@@ -38,10 +38,17 @@ export const maskSecrets = (msg, env) => SECRET_NAMES.map(n => env[n]).filter(k 
 const stripTags = s => String(s || '').replace(/<[^>]+>/g, '').replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').trim();
 const asArray = v => (Array.isArray(v) ? v : v ? [v] : []);
 
-export function createClient({ env = process.env, fetchImpl = fetch, delay = 120 } = {}) {
+export function createClient({ env = process.env, fetchImpl = fetch, delay = 120, timeoutMs = 30000 } = {}) {
+  // 응답이 없는 API 때문에 전체 작업이 멈추지 않도록 요청마다 시간 제한을 둡니다(본문 읽기 포함).
   async function get(url, opts = {}) {
     await sleep(delay);
-    const res = await fetchImpl(url, opts);
+    let res;
+    try {
+      res = await fetchImpl(url, { ...opts, signal: AbortSignal.timeout(timeoutMs) });
+    } catch (e) {
+      const where = maskSecrets(url.split('?')[0], env);
+      throw new Error(e.name === 'TimeoutError' || e.name === 'AbortError' ? `시간 초과(${timeoutMs / 1000}초) ${where}` : `${e.message} ${where}`);
+    }
     if (!res.ok) throw new Error(maskSecrets(`HTTP ${res.status} ${url.split('?')[0]}`, env));
     return res;
   }
@@ -218,9 +225,13 @@ export function valuation(price, annual, dividends) {
 }
 
 // ---------- 수집 ----------
-export async function collectCompany(api, env, { code, name }, corpMap, now) {
+export async function collectCompany(api, env, { code, name }, corpMap, now, log = () => {}) {
   const errors = [];
-  const tryIt = async (label, fn) => { try { return await fn(); } catch (e) { errors.push(`${code} ${label}: ${maskSecrets(e.message, env)}`); return null; } };
+  const tryIt = async (label, fn) => {
+    const t = Date.now();
+    try { const r = await fn(); log(`  ${code} ${label}: ok (${Date.now() - t}ms)`); return r; }
+    catch (e) { const msg = `${code} ${label}: ${maskSecrets(e.message, env)}`; errors.push(msg); log(`  ${msg} (${Date.now() - t}ms)`); return null; }
+  };
   const out = { code, name, updatedAt: now.toISOString() };
   const corp = corpMap.get(code);
 
@@ -338,38 +349,43 @@ async function semiconductorExports(api, now) {
   return { hs: SEMI_HS, label: '반도체(HS 8542 전자집적회로)', unit: 'USD', months: items.filter(i => /^\d{4}\.\d{2}$/.test(i.year || '')).map(i => ({ month: i.year, exports: i.expDlr, imports: i.impDlr, balance: i.balPayments })) };
 }
 
-export async function run({ outDir, env = process.env, api = createClient({ env }), now = new Date(), companies }) {
+export async function run({ outDir, env = process.env, api = createClient({ env }), now = new Date(), companies, log = () => {} }) {
   const errors = [];
   const sources = {};
   await mkdir(outDir, { recursive: true });
 
   let corpList = [];
   if (env.DART_API_KEY) {
-    try { corpList = await api.corpCodes(); sources.dart = 'ok'; } catch (e) { errors.push('OpenDART 고유번호: ' + maskSecrets(e.message, env)); sources.dart = 'error'; }
+    log('OpenDART 고유번호 목록…');
+    try { corpList = await api.corpCodes(); sources.dart = 'ok'; log(`  ${corpList.length}개 상장사`); } catch (e) { errors.push('OpenDART 고유번호: ' + maskSecrets(e.message, env)); sources.dart = 'error'; }
   } else sources.dart = 'no-key';
   const corpMap = new Map(corpList.map(c => [c.code, c]));
 
   // 검색용 종목 목록: KRX 상장종목(시장 구분 포함)을 우선 사용하고, 실패하면 DART 목록을 씁니다.
   let stocks = [];
   if (env.DATA_GO_KR_KEY) {
-    try { stocks = await listedStocks(api, now); sources.krxListed = stocks.length ? 'ok' : 'empty'; } catch (e) { errors.push('KRX상장종목: ' + maskSecrets(e.message, env)); sources.krxListed = 'error'; }
+    log('KRX 상장종목 목록…');
+    try { stocks = await listedStocks(api, now); log(`  ${stocks.length}개 종목`); sources.krxListed = stocks.length ? 'ok' : 'empty'; } catch (e) { errors.push('KRX상장종목: ' + maskSecrets(e.message, env)); sources.krxListed = 'error'; }
   } else sources.krxListed = 'no-key';
   if (!stocks.length) stocks = corpList.map(c => ({ code: c.code, name: c.name }));
   const collected = new Set(companies.map(c => c.code));
   await writeFile(path.join(outDir, 'stocks.json'), JSON.stringify(stocks.map(s => ({ c: s.code, n: s.name, m: s.market || '', d: collected.has(s.code) ? 1 : 0 }))));
 
   for (const company of companies) {
-    const { data, errors: e } = await collectCompany(api, env, company, corpMap, now);
+    log(`${company.name}(${company.code})…`);
+    const { data, errors: e } = await collectCompany(api, env, company, corpMap, now, log);
     errors.push(...e);
     await writeFile(path.join(outDir, `${company.code}.json`), JSON.stringify(data));
   }
 
   let trade = null;
   if (env.DATA_GO_KR_KEY) {
+    log('관세청 반도체 수출입…');
     try { trade = await semiconductorExports(api, now); sources.customs = trade.months.length ? 'ok' : 'empty'; } catch (e) { errors.push('관세청 수출입: ' + maskSecrets(e.message, env)); sources.customs = 'error'; }
     if (trade) await writeFile(path.join(outDir, 'trade.json'), JSON.stringify(trade));
   } else sources.customs = 'no-key';
   if (env.ECOS_API_KEY) {
+    log('한국은행 ECOS…');
     const { macro, errors: e } = await macroIndicators(api, now);
     errors.push(...e.map(x => maskSecrets(x, env)));
     sources.ecos = macro.usdkrw || macro.baseRate ? (e.length ? 'partial' : 'ok') : 'error';
@@ -386,7 +402,7 @@ export async function run({ outDir, env = process.env, api = createClient({ env 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const outDir = process.argv[2] || 'data-out';
   const companies = JSON.parse(await readFile(new URL('./companies.json', import.meta.url), 'utf8'));
-  const meta = await run({ outDir, companies });
+  const meta = await run({ outDir, companies, log: m => console.log(`[${new Date().toISOString().slice(11, 19)}] ${m}`) });
   console.log(`수집 완료: 기업 ${meta.companies.length}곳, 오류 ${meta.errors.length}건`);
   for (const [k, v] of Object.entries(meta.sources)) console.log(`  ${k}: ${v}`);
   for (const e of meta.errors) console.log('  ! ' + e);
