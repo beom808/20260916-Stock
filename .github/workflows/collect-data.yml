@@ -22,8 +22,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: 접속 진단(임시)
-        run: node scripts/net-check.mjs
+      - name: 이전 수집 데이터 가져오기
+        # 이번에 실패한 항목은 이전 수집분을 유지하기 위해 data 브랜치를 prev 폴더에 풉니다(처음엔 없음).
+        run: |
+          mkdir -p prev
+          if git fetch -q --depth=1 origin data 2>/dev/null; then git archive FETCH_HEAD | tar -x -C prev; fi
+          ls prev
 
       - name: 데이터 수집
         env:
@@ -32,7 +36,7 @@ jobs:
           NAVER_API_KEY_ID: ${{ secrets.NAVER_API_KEY_ID }}
           NAVER_API_KEY_SECRET: ${{ secrets.NAVER_API_KEY_SECRET }}
           ECOS_API_KEY: ${{ secrets.ECOS_API_KEY }}
-        run: node scripts/collect-data.mjs out
+        run: node scripts/collect-data.mjs out prev
 
       - name: data 브랜치에 게시
         env:

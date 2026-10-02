@@ -187,7 +187,7 @@ function macroCard() {
   if (m.fx) rows.push(['원/달러 환율', `${m.fx.value.toLocaleString('ko-KR', { maximumFractionDigits: 2 })}원`, `${periodDot(m.fx.date)} · 1개월 ${signPct(m.fx.m1)} · 1년 ${m.fx.low.toLocaleString('ko-KR')}~${m.fx.high.toLocaleString('ko-KR')}원`]);
   if (m.br) rows.push(['한국은행 기준금리', `${m.br.value}%`, `${periodDot(m.br.date)} 기준${m.br.prev != null ? ` · ${periodDot(m.br.since)}부터 (이전 ${m.br.prev}%)` : ''}`]);
   return '<h4 class="live-sub">거시지표</h4>' + (macro.usdkrw ? sparkline(macro.usdkrw.rows.map(r => [r[0], r[1]]), '원/달러 환율') : '')
-    + table(['지표', '값', '기준·변화'], rows.map(r => r.map(esc))) + '<p class="live-src">출처: 한국은행 경제통계시스템(ECOS) — 원/달러 매매기준율(일별), 기준금리</p>';
+    + table(['지표', '값', '기준·변화'], rows.map(r => r.map(esc))) + '<p class="live-src">출처: 한국은행 경제통계시스템(ECOS) — 원/달러 매매기준율(일별), 기준금리' + (macro.usdkrw?.stale || macro.baseRate?.stale ? ' · 일부는 이전 수집분' : '') + '</p>';
 }
 
 function fmt(v) { return v == null ? '-' : v.toLocaleString('ko-KR'); }
@@ -215,9 +215,13 @@ function renderSectionCard() {
   const html = d && SECTIONS[id]?.(d);
   if (!html) return;
   const at = current?.updatedAt || macro?.updatedAt;
+  // 이번 수집에서 실패해 이전 수집분을 보여주는 항목이면 그 시각을 함께 밝힙니다.
+  const KEYS = { overview: ['profile'], earnings: ['latestQuarter'], financials: ['annual'], valuation: ['price', 'annual'], return: ['dividends'], trading: ['price', 'news'], risks: ['news'], schedule: ['disclosures'], sources: ['disclosures'] };
+  const stale = (KEYS[id] || []).filter(k => current?.stale?.includes(k));
+  const staleNote = stale.length ? `<p class="live-stale">일부 항목은 최근 수집에 실패해 이전 수집분을 표시합니다 (${stale.map(k => esc(new Date(current.sectionTimes?.[k] || at).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' }))).join(', ')} 수집).</p>` : '';
   const el = document.createElement('div');
   el.className = 'live-card';
-  el.innerHTML = `<div class="live-head"><span class="live-badge">공식 데이터</span><small>${at ? `수집 ${esc(new Date(at).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' }))}` : ''}</small></div>${html}`;
+  el.innerHTML = `<div class="live-head"><span class="live-badge">공식 데이터</span><small>${at ? `수집 ${esc(new Date(at).toLocaleDateString('ko-KR', { timeZone: 'Asia/Seoul' }))}` : ''}</small></div>${staleNote}${html}`;
   section.querySelector('h2').after(el);
 }
 

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { deflateRawSync } from 'node:zlib';
-import { mkdtemp, readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { run, createClient, unzipFirst, parseCorpCodes, annualFromReport, priceSummary, valuation } from '../scripts/collect-data.mjs';
@@ -127,7 +127,7 @@ test('ECOS 인증 오류 메시지에 경로 속 키가 남지 않는다', async
   const env = { ECOS_API_KEY: 'WRONGKEY99' };
   const out = await mkdtemp(path.join(tmpdir(), 'collect-'));
   const fetchImpl = async url => ({ ok: false, status: 500, json: async () => ({}) });
-  const meta = await run({ outDir: out, env, api: createClient({ env, fetchImpl, delay: 0 }), now: new Date('2026-10-02T06:00:00Z'), companies: [] });
+  const meta = await run({ outDir: out, env, api: createClient({ env, fetchImpl, delay: 0, retries: 0 }), now: new Date('2026-10-02T06:00:00Z'), companies: [] });
   assert.equal(meta.sources.ecos, 'error');
   assert.ok(meta.errors.some(e => e.includes('HTTP 500')));
   assert.ok(!JSON.stringify(meta).includes('WRONGKEY99'));
@@ -138,7 +138,7 @@ test('응답이 없는 API는 시간 초과로 끊고 다음 단계로 넘어간
   const out = await mkdtemp(path.join(tmpdir(), 'collect-'));
   // 실제 소켓처럼 이벤트 루프를 붙잡아 두고, 시간 제한 신호가 오면 끊습니다.
   const hang = (url, opts) => new Promise((_, reject) => { const keep = setTimeout(() => {}, 10000); opts.signal.addEventListener('abort', () => { clearTimeout(keep); reject(opts.signal.reason); }); });
-  const meta = await run({ outDir: out, env, api: createClient({ env, fetchImpl: hang, delay: 0, timeoutMs: 50 }), now: new Date('2026-10-02T06:00:00Z'), companies: [] });
+  const meta = await run({ outDir: out, env, api: createClient({ env, fetchImpl: hang, delay: 0, timeoutMs: 50, retries: 0 }), now: new Date('2026-10-02T06:00:00Z'), companies: [] });
   assert.ok(meta.errors.some(e => e.includes('시간 초과')));
   assert.ok(!JSON.stringify(meta).includes('SLOWKEY123'));
 });
@@ -147,8 +147,52 @@ test('출처 오류는 기록하되 키는 가린다', async () => {
   const env = { DART_API_KEY: 'DARTSECRET' };
   const out = await mkdtemp(path.join(tmpdir(), 'collect-'));
   const failing = async url => { throw new Error('network down ' + url); };
-  const meta = await run({ outDir: out, env, api: createClient({ env, fetchImpl: failing, delay: 0 }), now: new Date('2026-10-02T06:00:00Z'), companies: [{ code: '005930', name: '삼성전자' }] });
+  const meta = await run({ outDir: out, env, api: createClient({ env, fetchImpl: failing, delay: 0, retries: 0 }), now: new Date('2026-10-02T06:00:00Z'), companies: [{ code: '005930', name: '삼성전자' }] });
   assert.equal(meta.sources.dart, 'error');
   assert.ok(meta.errors.length > 0);
   assert.ok(!JSON.stringify(meta).includes('DARTSECRET'));
+});
+
+test('일시적 네트워크 오류는 다시 시도하고, 4xx는 다시 시도하지 않는다', async () => {
+  let n = 0;
+  const flaky = async () => { n++; if (n === 1) throw new TypeError('fetch failed'); return { ok: true, json: async () => ({ status: '000', corp_name: 'X' }) }; };
+  const ok = await createClient({ env: { DART_API_KEY: 'K1234' }, fetchImpl: flaky, delay: 0 }).dart('company', {});
+  assert.equal(ok.corp_name, 'X');
+  assert.equal(n, 2);
+  let m = 0;
+  const forbidden = async () => { m++; return { ok: false, status: 403 }; };
+  await assert.rejects(createClient({ env: { DART_API_KEY: 'K1234' }, fetchImpl: forbidden, delay: 0 }).dart('company', {}), /HTTP 403/);
+  assert.equal(m, 1);
+});
+
+test('실패한 항목은 이전 수집분을 유지하고 stale로 표시한다', async () => {
+  const prev = await mkdtemp(path.join(tmpdir(), 'prev-'));
+  await writeFile(path.join(prev, '005930.json'), JSON.stringify({ code: '005930', updatedAt: '2026-10-01T05:40:00Z', fsDiv: 'CFS', corpCode: '00126380',
+    annual: [{ year: 2025, revenue: 100, netIncomeOwners: 10, equityOwners: 50 }], price: { close: 10, marketCap: 200, basDt: '20260930' }, news: [{ title: '옛 뉴스' }] }));
+  await writeFile(path.join(prev, 'stocks.json'), JSON.stringify([{ c: '005930', n: '삼성전자', m: 'KOSPI', d: 1 }, { c: '000660', n: 'SK하이닉스', m: 'KOSPI', d: 0 }]));
+  await writeFile(path.join(prev, 'corpcodes.json'), JSON.stringify([{ corp: '00126380', name: '삼성전자', code: '005930' }]));
+  await writeFile(path.join(prev, 'macro.json'), JSON.stringify({ updatedAt: '2026-10-01T05:40:00Z', usdkrw: { rows: [['20260930', 1400]] } }));
+  const env = { DART_API_KEY: 'DARTSECRET', DATA_GO_KR_KEY: 'GOSECRET', NAVER_API_KEY_ID: 'NID1', NAVER_API_KEY_SECRET: 'NSECRET', ECOS_API_KEY: 'ECOSKEY1' };
+  // 고유번호 목록·시세·ECOS 실패, OpenDART 개별 API와 뉴스는 성공
+  const calls = [];
+  const base = fakeFetch(calls);
+  const fetchImpl = async (url, opts) => {
+    if (url.includes('corpCode.xml') || url.includes('getStockPriceInfo') || url.includes('getItemInfo') || url.includes('ecos.bok.or.kr')) throw new TypeError('fetch failed');
+    return base(url, opts);
+  };
+  const out = await mkdtemp(path.join(tmpdir(), 'collect-'));
+  const meta = await run({ outDir: out, prevDir: prev, env, api: createClient({ env, fetchImpl, delay: 0, retries: 0 }), now: new Date('2026-10-02T06:00:00Z'), companies: [{ code: '005930', name: '삼성전자' }] });
+  const d = JSON.parse(await readFile(path.join(out, '005930.json'), 'utf8'));
+  assert.deepEqual(d.annual.map(a => a.year), [2021, 2022, 2023, 2024, 2025], '저장된 고유번호로 재무는 새로 수집');
+  assert.equal(d.sectionTimes.annual, '2026-10-02T06:00:00.000Z');
+  assert.deepEqual(d.stale, ['price']);
+  assert.equal(d.price.close, 10);
+  assert.equal(d.sectionTimes.price, '2026-10-01T05:40:00Z');
+  assert.equal(d.news[0].title, '삼성전자 "실적"', '뉴스는 새로 수집');
+  assert.ok(d.valuation.pbr > 0, '이전 시세 + 새 재무로 밸류에이션 재계산');
+  const stocks = JSON.parse(await readFile(path.join(out, 'stocks.json'), 'utf8'));
+  assert.equal(stocks.length, 2, '종목 목록은 이전 것을 유지');
+  const macro = JSON.parse(await readFile(path.join(out, 'macro.json'), 'utf8'));
+  assert.equal(macro.usdkrw.stale, '2026-10-01T05:40:00Z');
+  assert.ok(meta.errors.length > 0);
 });
