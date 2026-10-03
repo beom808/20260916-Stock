@@ -1,0 +1,24 @@
+{
+ "updatedAt": "2026-10-03T04:53:17.123Z",
+ "companies": [
+  "005930",
+  "000660",
+  "005380",
+  "035420"
+ ],
+ "sources": {
+  "krxListed": "error",
+  "dart": "ok",
+  "customs": "ok",
+  "ecos": "ok",
+  "dataGoPrice": "used",
+  "naverNews": "used"
+ },
+ "errors": [
+  "KRX상장종목: HTTP 403 https://apis.data.go.kr/1160100/service/GetKrxListedInfoService/getItemInfo — { \"OpenAPI_ServiceResponse\": { \"cmmMsgHeader\": { \"errMsg\": \"SERVICE_KEY_IS_NOT_REGISTERED_ERROR\", \"returnAuthMsg\": \"등록되지 않은 서비스키\", \"returnReasonCode\": \"30\" } } ",
+  "005930 주식시세: HTTP 403 https://apis.data.go.kr/1160100/service/GetStockSecuritiesInfoService/getStockPriceInfo — { \"OpenAPI_ServiceResponse\": { \"cmmMsgHeader\": { \"errMsg\": \"SERVICE_KEY_IS_NOT_REGISTERED_ERROR\", \"returnAuthMsg\": \"등록되지 않은 서비스키\", \"returnReasonCode\": \"30\" } } ",
+  "000660 주식시세: HTTP 403 https://apis.data.go.kr/1160100/service/GetStockSecuritiesInfoService/getStockPriceInfo — { \"OpenAPI_ServiceResponse\": { \"cmmMsgHeader\": { \"errMsg\": \"SERVICE_KEY_IS_NOT_REGISTERED_ERROR\", \"returnAuthMsg\": \"등록되지 않은 서비스키\", \"returnReasonCode\": \"30\" } } ",
+  "005380 주식시세: HTTP 403 https://apis.data.go.kr/1160100/service/GetStockSecuritiesInfoService/getStockPriceInfo — { \"OpenAPI_ServiceResponse\": { \"cmmMsgHeader\": { \"errMsg\": \"SERVICE_KEY_IS_NOT_REGISTERED_ERROR\", \"returnAuthMsg\": \"등록되지 않은 서비스키\", \"returnReasonCode\": \"30\" } } ",
+  "035420 주식시세: HTTP 403 https://apis.data.go.kr/1160100/service/GetStockSecuritiesInfoService/getStockPriceInfo — { \"OpenAPI_ServiceResponse\": { \"cmmMsgHeader\": { \"errMsg\": \"SERVICE_KEY_IS_NOT_REGISTERED_ERROR\", \"returnAuthMsg\": \"등록되지 않은 서비스키\", \"returnReasonCode\": \"30\" } } "
+ ]
+}
