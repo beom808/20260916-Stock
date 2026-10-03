@@ -227,3 +227,22 @@ test('종목 목록을 못 받아도 수집 대상 기업은 검색 목록에 �
   const stocks = JSON.parse(await readFile(path.join(out, 'stocks.json'), 'utf8'));
   assert.deepEqual(stocks.map(s => [s.c, s.d]), [['005930', 1], ['000660', 1]]);
 });
+
+test('공공데이터포털은 API별 키를 쓰고, 연결이 안 되는 서버는 이후 요청을 건너뛴다', async () => {
+  const env = { DATA_GO_KR_KEY: 'TRADEKEY1', DATA_GO_KR_PRICE_KEY: 'PRICEKEY1', DATA_GO_KR_LISTED_KEY: 'LISTKEY1' };
+  const keys = [];
+  let hits = 0;
+  const fetchImpl = async url => {
+    const u = new URL(url);
+    keys.push([u.pathname.split('/').pop(), u.searchParams.get('serviceKey')]);
+    if (u.pathname.endsWith('/getItemInfo')) { hits++; throw new TypeError('fetch failed'); }
+    throw new Error('unexpected');
+  };
+  const out = await mkdtemp(path.join(tmpdir(), 'collect-'));
+  const meta = await run({ outDir: out, env, api: createClient({ env, fetchImpl, delay: 0, retries: 1 }), now: new Date('2026-10-02T06:00:00Z'), companies: [{ code: '005930', name: '삼성전자', corp: '00126380' }] });
+  assert.equal(hits, 2, '첫 요청만 재시도 포함 2회 시도');
+  assert.deepEqual(keys.find(k => k[0] === 'getItemInfo'), ['getItemInfo', 'LISTKEY1']);
+  assert.ok(!keys.some(k => k[0] === 'getStockPriceInfo'), '같은 서버라 주식시세는 건너뜀');
+  assert.ok(meta.errors.some(e => e.includes('005930 주식시세') && e.includes('건너뜀')));
+  assert.ok(!JSON.stringify(meta).match(/TRADEKEY1|PRICEKEY1|LISTKEY1/));
+});

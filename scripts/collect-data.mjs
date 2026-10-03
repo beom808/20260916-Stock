@@ -4,6 +4,8 @@
 //
 // 사용법: node scripts/collect-data.mjs <출력폴더>
 // 필요한 환경변수: DART_API_KEY, DATA_GO_KR_KEY, NAVER_API_KEY_ID, NAVER_API_KEY_SECRET, ECOS_API_KEY
+// 공공데이터포털은 API마다 인증키가 다를 수 있어 DATA_GO_KR_PRICE_KEY(주식시세), DATA_GO_KR_LISTED_KEY(KRX상장종목)를
+// 따로 줄 수 있습니다. 없으면 DATA_GO_KR_KEY를 씁니다(관세청 수출입은 DATA_GO_KR_KEY).
 // 키가 없는 출처는 건너뛰고, 실패한 출처는 meta.json의 errors에 기록합니다(키 값은 기록하지 않음).
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { inflateRawSync } from 'node:zlib';
@@ -31,7 +33,9 @@ const num = v => {
 const ymd = d => d.toISOString().slice(0, 10).replace(/-/g, '');
 const daysAgo = (n, now) => new Date(now.getTime() - n * 864e5);
 const hideSecrets = s => String(s).replace(/(crtfc_key|serviceKey)=[^&\s]+/gi, '$1=***');
-const SECRET_NAMES = ['DART_API_KEY', 'DATA_GO_KR_KEY', 'NAVER_API_KEY_ID', 'NAVER_API_KEY_SECRET', 'ECOS_API_KEY'];
+const SECRET_NAMES = ['DART_API_KEY', 'DATA_GO_KR_KEY', 'DATA_GO_KR_PRICE_KEY', 'DATA_GO_KR_LISTED_KEY', 'NAVER_API_KEY_ID', 'NAVER_API_KEY_SECRET', 'ECOS_API_KEY'];
+export const priceKey = env => env.DATA_GO_KR_PRICE_KEY || env.DATA_GO_KR_KEY;
+export const listedKey = env => env.DATA_GO_KR_LISTED_KEY || env.DATA_GO_KR_KEY;
 // 오류 메시지에서 키 값을 가립니다(ECOS는 키가 URL 경로에 들어갑니다).
 export const maskSecrets = (msg, env) => SECRET_NAMES.map(n => env[n]).filter(k => k && k.length >= 4)
   .reduce((m, k) => m.split(k).join('***').split(encodeURIComponent(k)).join('***'), hideSecrets(msg));
@@ -42,9 +46,13 @@ export function createClient({ env = process.env, fetchImpl = fetch, delay = 120
   // 응답이 없는 API 때문에 전체 작업이 멈추지 않도록 요청마다 시간 제한을 둡니다(본문 읽기 포함).
   // 네트워크 오류·시간 초과·5xx는 잠시 뒤 다시 시도합니다(4xx는 키·권한 문제라 재시도하지 않음).
   // 본문을 읽는 동안에도 시간 제한이 적용되도록 read 함수로 본문까지 읽어서 돌려줍니다.
+  // 서버 연결 자체가 안 되면(일부 해외 IP 차단 등) 같은 서버로 가는 나머지 요청은 기다리지 않고 건너뜁니다.
+  const unreachable = new Set();
   async function get(url, opts = {}, read = r => r, { timeout = timeoutMs, tries = retries + 1 } = {}) {
     const where = maskSecrets(url.split('?')[0], env);
-    let last;
+    const host = new URL(url).host;
+    if (unreachable.has(host)) throw new Error(`접속 불가(같은 서버 연결 실패로 건너뜀) ${where}`);
+    let last, connectFail = false;
     for (let i = 0; i < tries; i++) {
       await sleep(i ? delay + 1500 * i : delay);
       try {
@@ -60,10 +68,12 @@ export function createClient({ env = process.env, fetchImpl = fetch, delay = 120
         return await read(res);
       } catch (e) {
         if (e.final) throw e;
+        connectFail = e.message === 'fetch failed' || /CONNECT|ECONNREFUSED|EHOSTUNREACH|ENETUNREACH|ENOTFOUND/.test(e.cause?.code || '');
         last = e.name === 'TimeoutError' || e.name === 'AbortError' ? new Error(`시간 초과(${timeout / 1000}초) ${where}`)
           : new Error(e.message.includes(where) ? e.message : `${maskSecrets(e.message, env)} ${where}`);
       }
     }
+    if (connectFail) unreachable.add(host);
     throw new Error(`${last.message}${tries > 1 ? ` (${tries}회 시도)` : ''}`);
   }
 
@@ -85,8 +95,8 @@ export function createClient({ env = process.env, fetchImpl = fetch, delay = 120
   }
 
   // ---------- 공공데이터포털 ----------
-  async function dataGo(base, params) {
-    const q = new URLSearchParams({ serviceKey: env.DATA_GO_KR_KEY, resultType: 'json', ...params });
+  async function dataGo(base, params, key = env.DATA_GO_KR_KEY) {
+    const q = new URLSearchParams({ serviceKey: key, resultType: 'json', ...params });
     const text = await get(`${base}?${q}`, {}, r => r.text());
     let body;
     try { body = JSON.parse(text); } catch { throw new Error(`공공데이터포털 응답 오류: ${hideSecrets(stripTags(text).slice(0, 200))}`); }
@@ -305,9 +315,9 @@ export async function collectCompany(api, env, { code, name }, corpMap, now, log
   return finish();
 
   async function finish() {
-  if (env.DATA_GO_KR_KEY) {
+  if (priceKey(env)) {
     out.price = await tryIt('주식시세', async () => {
-      const { items } = await api.dataGo(PRICE, { likeSrtnCd: code, beginBasDt: ymd(daysAgo(400, now)), numOfRows: '400', pageNo: '1' });
+      const { items } = await api.dataGo(PRICE, { likeSrtnCd: code, beginBasDt: ymd(daysAgo(400, now)), numOfRows: '400', pageNo: '1' }, priceKey(env));
       return priceSummary(items.filter(i => String(i.srtnCd).replace(/^A/, '') === code));
     });
   }
@@ -329,10 +339,10 @@ async function fin(api, corp, year, reprt) {
   return null;
 }
 
-async function listedStocks(api, now) {
+async function listedStocks(api, now, env) {
   // 가장 최근 영업일 목록을 찾을 때까지 하루씩 거슬러 올라갑니다.
   for (let i = 1; i <= 10; i++) {
-    const { items } = await api.dataGo(LISTED, { basDt: ymd(daysAgo(i, now)), numOfRows: '5000', pageNo: '1' });
+    const { items } = await api.dataGo(LISTED, { basDt: ymd(daysAgo(i, now)), numOfRows: '5000', pageNo: '1' }, listedKey(env));
     if (items.length) return items.map(i => ({ code: String(i.srtnCd).replace(/^A/, ''), name: i.itmsNm, market: i.mrktCtg })).filter(s => /^\d{6}$/.test(s.code));
   }
   return [];
@@ -401,9 +411,9 @@ export async function run({ outDir, env = process.env, api = createClient({ env 
 
   // 검색용 종목 목록: KRX 상장종목(시장 구분 포함)을 우선 사용합니다.
   let stocks = [];
-  if (env.DATA_GO_KR_KEY) {
+  if (listedKey(env)) {
     log('KRX 상장종목 목록…');
-    try { stocks = await listedStocks(api, now); log(`  ${stocks.length}개 종목`); sources.krxListed = stocks.length ? 'ok' : 'empty'; } catch (e) { errors.push('KRX상장종목: ' + maskSecrets(e.message, env)); sources.krxListed = 'error'; }
+    try { stocks = await listedStocks(api, now, env); log(`  ${stocks.length}개 종목`); sources.krxListed = stocks.length ? 'ok' : 'empty'; } catch (e) { errors.push('KRX상장종목: ' + maskSecrets(e.message, env)); sources.krxListed = 'error'; }
   } else sources.krxListed = 'no-key';
   const prevStocks = await readPrev(prevDir, 'stocks.json');
 
@@ -455,7 +465,7 @@ export async function run({ outDir, env = process.env, api = createClient({ env 
     sources.ecos = macro.usdkrw || macro.baseRate ? (e.length ? 'partial' : 'ok') : 'error';
     await writeFile(path.join(outDir, 'macro.json'), JSON.stringify(macro));
   } else sources.ecos = 'no-key';
-  sources.dataGoPrice = env.DATA_GO_KR_KEY ? 'used' : 'no-key';
+  sources.dataGoPrice = priceKey(env) ? 'used' : 'no-key';
   sources.naverNews = env.NAVER_API_KEY_ID && env.NAVER_API_KEY_SECRET ? 'used' : 'no-key';
 
   const meta = { updatedAt: now.toISOString(), companies: companies.map(c => c.code), sources, errors };

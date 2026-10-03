@@ -4,8 +4,9 @@ name: 데이터 수집
 
 on:
   schedule:
-    # 평일 14:40 KST (공공데이터포털 주식시세는 다음 영업일 13시 이후 갱신)
-    - cron: '40 5 * * 1-5'
+    # 평일 14:40·17:40·20:40 KST (공공데이터포털 주식시세는 다음 영업일 13시 이후 갱신).
+    # GitHub 서버 IP에 따라 공공데이터포털 접속이 안 될 때가 있어 하루 3번 시도하고, 실패한 항목은 이전 수집분을 유지합니다.
+    - cron: '40 5,8,11 * * 1-5'
   workflow_dispatch:
 
 permissions:
@@ -33,6 +34,8 @@ jobs:
         env:
           DART_API_KEY: ${{ secrets.DART_API_KEY }}
           DATA_GO_KR_KEY: ${{ secrets.DATA_GO_KR_KEY }}
+          DATA_GO_KR_PRICE_KEY: ${{ secrets.DATA_GO_KR_PRICE_KEY }}
+          DATA_GO_KR_LISTED_KEY: ${{ secrets.DATA_GO_KR_LISTED_KEY }}
           NAVER_API_KEY_ID: ${{ secrets.NAVER_API_KEY_ID }}
           NAVER_API_KEY_SECRET: ${{ secrets.NAVER_API_KEY_SECRET }}
           ECOS_API_KEY: ${{ secrets.ECOS_API_KEY }}
