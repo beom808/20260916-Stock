@@ -86,14 +86,16 @@ Cloud Storage와 Cloud Functions는 사용하지 않습니다.
 
 ## 공식 데이터 수집 (GitHub Actions)
 
-`.github/workflows/collect-data.yml`이 평일 14:40(KST)마다 `scripts/collect-data.mjs`를 실행해
+`.github/workflows/collect-data.yml`이 평일 14:40·17:40·20:40(KST)마다 `scripts/collect-data.mjs`를 실행해
 아래 출처의 데이터를 JSON으로 만들고 **`data` 브랜치**에 올립니다. 사이트(`public/live-data.js`)는
 `https://raw.githubusercontent.com/beom808/20260916-Stock/data/` 에서 이 파일을 읽어 화면에 반영합니다.
 
 | 출처 | GitHub Secret | 사용처 |
 | --- | --- | --- |
 | OpenDART | `DART_API_KEY` | 기업개황, 5개년 재무, 최근 분기, 배당, 최근 공시, 종목 고유번호 |
-| 공공데이터포털 | `DATA_GO_KR_KEY` (Decoding 키) | 주가·시가총액(금융위원회_주식시세정보), 검색용 종목 목록(KRX상장종목정보), 반도체 수출입(관세청) |
+| 공공데이터포털 | `DATA_GO_KR_KEY` (Decoding 키) | 반도체 수출입(관세청). 아래 두 키가 없으면 주가·종목 목록에도 사용 |
+| 공공데이터포털 | `DATA_GO_KR_PRICE_KEY` | 주가·시가총액(금융위원회_주식시세정보). API마다 키가 다를 때 사용 |
+| 공공데이터포털 | `DATA_GO_KR_LISTED_KEY` | 검색용 종목 목록(금융위원회_KRX상장종목정보) |
 | NAVER API HUB | `NAVER_API_KEY_ID`, `NAVER_API_KEY_SECRET` | 최근 뉴스 |
 | 한국은행 ECOS | `ECOS_API_KEY` | 원/달러 환율(일별), 한국은행 기준금리 |
 
