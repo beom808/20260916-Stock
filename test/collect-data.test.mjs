@@ -246,3 +246,18 @@ test('공공데이터포털은 API별 키를 쓰고, 연결이 안 되는 서버
   assert.ok(meta.errors.some(e => e.includes('005930 주식시세') && e.includes('건너뜀')));
   assert.ok(!JSON.stringify(meta).match(/TRADEKEY1|PRICEKEY1|LISTKEY1/));
 });
+
+test('Encoding 형식 키를 넣어도 다시 시도해서 동작한다', async () => {
+  const env = { DATA_GO_KR_PRICE_KEY: 'ab%2Bcd%3D%3D' }; // 원문은 'ab+cd=='
+  const seen = [];
+  const fetchImpl = async url => {
+    const raw = url.match(/serviceKey=([^&]+)/)[1];
+    seen.push(raw);
+    if (raw !== 'ab%2Bcd%3D%3D') return { ok: false, status: 403, text: async () => '{"OpenAPI_ServiceResponse":{"cmmMsgHeader":{"errMsg":"SERVICE_KEY_IS_NOT_REGISTERED_ERROR"}}}' };
+    return { ok: true, text: async () => JSON.stringify({ response: { header: { resultCode: '00' }, body: { items: { item: [{ basDt: '20261002', srtnCd: '005930', clpr: '1000' }] } } } }) };
+  };
+  const api = createClient({ env, fetchImpl, delay: 0, retries: 0 });
+  const r = await api.dataGo('https://apis.data.go.kr/x/getStockPriceInfo', { likeSrtnCd: '005930' }, env.DATA_GO_KR_PRICE_KEY);
+  assert.equal(r.items.length, 1);
+  assert.deepEqual(seen, ['ab%252Bcd%253D%253D', 'ab%2Bcd%3D%3D']);
+});

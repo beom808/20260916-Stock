@@ -95,9 +95,21 @@ export function createClient({ env = process.env, fetchImpl = fetch, delay = 120
   }
 
   // ---------- 공공데이터포털 ----------
+  // 공공데이터포털 키는 Decoding(원문)·Encoding(%2B 등 포함) 두 형식이 있습니다. 어느 쪽을 Secret에 넣어도 되도록,
+  // '등록되지 않은 서비스키' 오류가 나면 다른 형식으로 한 번 더 시도합니다.
+  const keyUrls = (base, params, key) => {
+    const rest = new URLSearchParams({ resultType: 'json', ...params }).toString();
+    const urls = [`${base}?serviceKey=${encodeURIComponent(key)}&${rest}`];
+    if (/%[0-9A-Fa-f]{2}/.test(key)) urls.push(`${base}?serviceKey=${key}&${rest}`); // 이미 인코딩된 키
+    return urls;
+  };
   async function dataGo(base, params, key = env.DATA_GO_KR_KEY) {
-    const q = new URLSearchParams({ serviceKey: key, resultType: 'json', ...params });
-    const text = await get(`${base}?${q}`, {}, r => r.text());
+    let text, lastErr;
+    for (const url of keyUrls(base, params, key)) {
+      try { text = await get(url, {}, r => r.text()); lastErr = null; break; }
+      catch (e) { lastErr = e; if (!/SERVICE_KEY_IS_NOT_REGISTERED/.test(e.message)) break; }
+    }
+    if (lastErr) throw lastErr;
     let body;
     try { body = JSON.parse(text); } catch { throw new Error(`공공데이터포털 응답 오류: ${hideSecrets(stripTags(text).slice(0, 200))}`); }
     const header = body.response?.header;
