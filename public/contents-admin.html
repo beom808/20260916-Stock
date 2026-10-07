@@ -60,10 +60,10 @@
 
         <section id="panel-input" class="panel active">
             <div class="filters">
-                <input id="f-q" placeholder="검색 (제목·본문·핵심 메시지)">
-                <select id="f-format"><option value="">포맷 전체</option></select>
-                <select id="f-category"><option value="">카테고리 전체</option></select>
-                <select id="f-grade"><option value="">성과등급 전체</option><option>상</option><option>중</option><option>하</option></select>
+                <input id="f-q" placeholder="검색 (제목·본문·핵심 요약)">
+                <select id="f-format"><option value="">자료 종류 전체</option></select>
+                <select id="f-category"><option value="">업종 전체</option></select>
+                <select id="f-grade"><option value="">출처 신뢰도 전체</option><option>상</option><option>중</option><option>하</option></select>
             </div>
             <div id="input-list"></div>
         </section>
@@ -175,8 +175,8 @@ async function loadInput() {
     inputDocs = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
         .sort((a, b) => String(b.tags?.published_at ?? '').localeCompare(String(a.tags?.published_at ?? '')));
     $('n-input').textContent = `(${inputDocs.length})`;
-    fillOptions('f-format', 'format');
-    fillOptions('f-category', 'category');
+    fillOptions('f-format', 'source_type');
+    fillOptions('f-category', 'sector');
     renderInput();
 }
 function fillOptions(selId, tagKey) {
@@ -189,19 +189,19 @@ function fillOptions(selId, tagKey) {
 ['f-format', 'f-category', 'f-grade'].forEach((id) => $(id).onchange = renderInput);
 $('f-q').oninput = renderInput;
 function renderInput() {
-    const f = { format: $('f-format').value, category: $('f-category').value, performance_grade: $('f-grade').value };
+    const f = { source_type: $('f-format').value, sector: $('f-category').value, source_reliability: $('f-grade').value };
     const q = $('f-q').value.trim().toLowerCase();
     const list = $('input-list');
     list.replaceChildren();
     const shown = inputDocs.filter((d) => Object.entries(f).every(([k, v]) => !v || d.tags?.[k] === v)
         && (!q || [d.title, d.body, d.tags?.key_message].some((x) => String(x ?? '').toLowerCase().includes(q))));
-    if (!shown.length) list.appendChild(el('p', { text: '표시할 콘텐츠가 없습니다. Claude Code에서 /ingest 로 올려 보세요.', cls: 'msg' }));
+    if (!shown.length) list.appendChild(el('p', { text: '표시할 콘텐츠가 없습니다. Claude Code에서 /ingest 로 기업 정보를 올려 보세요.', cls: 'msg' }));
     shown.forEach((d) => {
         const t = d.tags || {};
         const { body, buttons } = bodyButtons(d.body || '');
         list.appendChild(el('div', { cls: 'card' }, [
             el('h3', { text: `${d.title || d.source_file || ''} · ${d.id}` }),
-            el('div', { cls: 'tags' }, [t.format, t.category, t.target_audience, t.performance_grade && `성과 ${t.performance_grade}`,
+            el('div', { cls: 'tags' }, [t.source_type, t.sector, t.company, t.source_reliability && `신뢰도 ${t.source_reliability}`,
                 d.views !== undefined && d.views !== null && `조회수 ${Number(d.views).toLocaleString()}`, t.published_at]
                 .filter(Boolean).map((x) => el('span', { text: x, cls: 'tag' }))),
             el('p', { text: t.key_message || '', cls: 'msg' }),
