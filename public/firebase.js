@@ -2,7 +2,7 @@
 // 이 파일은 빌드 없이 브라우저에서 바로 실행되는 ES 모듈입니다.
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-app.js';
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-auth.js';
-import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection, query, orderBy, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
+import { getFirestore, doc, setDoc, deleteDoc, onSnapshot, collection, query, orderBy, limit, getDocs, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-firestore.js';
 import { getAnalytics, isSupported } from 'https://www.gstatic.com/firebasejs/12.19.0/firebase-analytics.js';
 
 // 웹 앱용 Firebase 설정값은 비밀 키가 아니며 공개되어도 됩니다.
@@ -60,6 +60,7 @@ onAuthStateChanged(auth, u => {
   user = u;
   renderAuth();
   stopListening();
+  checkAdmin(u);
   if (u) {
     // 프로필 저장: 로그인할 때마다 문서 1건 쓰기
     setDoc(doc(db, 'users', u.uid), { displayName: u.displayName || '', email: u.email || '', photoURL: u.photoURL || '', lastLoginAt: serverTimestamp() }, { merge: true }).catch(console.error);
@@ -71,6 +72,19 @@ onAuthStateChanged(auth, u => {
   renderFav();
   renderMemo();
 });
+
+// 관리자 확인: 관리자 전용 컬렉션을 읽을 수 있으면(보안 규칙 isAdmin) 관리자 페이지 링크를 보여 준다.
+// 이메일을 코드에 넣지 않으므로 공개 저장소에도 노출되지 않는다. 일반 사용자는 거부되어 링크가 숨겨진 채 유지된다.
+async function checkAdmin(u) {
+  const link = $('#adminLink');
+  if (!link) return;
+  link.hidden = true;
+  if (!u) return;
+  try {
+    await getDocs(query(collection(db, 'contents_input'), limit(1)));
+    if (auth.currentUser === u) link.hidden = false;
+  } catch (e) { /* permission-denied: 관리자가 아님 */ }
+}
 
 function renderAuth() {
   $('#loginBtn').hidden = !!user;
